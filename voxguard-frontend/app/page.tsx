@@ -5,6 +5,7 @@ import { LoginControl } from "@/components/LoginControl";
 import { PlayerControl } from "@/components/PlayerControl";
 import { RegisterControl } from "@/components/RegisterControl";
 import { RecorderControl } from "@/components/RecorderControl";
+import { PageSection } from "@/components/ui/PageSection";
 import { downloadBinaryFile, listBinaryFiles, login, registerAndSetupKeys, type BinaryFileRecord } from "@/lib/api";
 import { useState, useRef } from "react";
 import { useRecorder } from "@/lib/useRecorder";
@@ -38,6 +39,8 @@ export default function Home() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const audioBlobUrlRef = useRef<string | null>(null);
 
   const loadFilesForUser = async (accessToken: string, userId: string) => {
@@ -88,6 +91,9 @@ export default function Home() {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isRegistering) return;
+
+    setIsRegistering(true);
     const formData = new FormData(e.currentTarget);
     const username = formData.get("username") as string;
     const password = formData.get("password") as string;
@@ -104,11 +110,16 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Registration failed:", err);
+    } finally {
+      setIsRegistering(false);
     }
   };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isLoggingIn) return;
+
+    setIsLoggingIn(true);
     const formData = new FormData(e.currentTarget);
     const username = formData.get("username") as string;
     const password = formData.get("password") as string;
@@ -128,16 +139,18 @@ export default function Home() {
       await loadFilesForUser(token, userId);
     } catch (err) {
       console.error("Login failed:", err);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+    <PageSection grow centered className="font-sans">
       <main className="flex flex-1 w-full max-w-md flex-col items-center justify-center py-32 px-16 bg-white dark:bg-black">
         <div className="flex flex-col items-center gap-8 w-full">
-          <RegisterControl onSubmit={handleRegister} />
+          <RegisterControl onSubmit={handleRegister} isSubmitting={isRegistering} />
           <div className="w-full border-t border-black/[.08] dark:border-white/[.1]" />
-          <LoginControl onSubmit={handleLogin} />
+          <LoginControl onSubmit={handleLogin} isSubmitting={isLoggingIn} />
           <RecorderControl
             recording={recording}
             onStart={startRecording}
@@ -160,6 +173,6 @@ export default function Home() {
           />
         </div>
       </main>
-    </div>
+    </PageSection>
   );
 }

@@ -1,4 +1,7 @@
 import type { BinaryFileRecord } from "@/lib/api";
+import { Button } from "@/components/ui/Button";
+import { Panel } from "@/components/ui/Panel";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 type FilesListControlProps = {
   currentUserId: string | null;
@@ -34,12 +37,14 @@ function FileRow({
           <p className="text-zinc-600 dark:text-zinc-400">recipient: {file.recipient_user_id ?? "unknown"}</p>
         </div>
         {onSelect && (
-          <button
+          <Button
             onClick={() => onSelect(file)}
-            className="shrink-0 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
+            variant="info"
+            size="sm"
+            className="shrink-0"
           >
             {isSelected ? "▶ Playing" : "▶ Play"}
-          </button>
+          </Button>
         )}
       </div>
     </li>
@@ -57,18 +62,17 @@ export function FilesListControl({
 }: FilesListControlProps) {
   return (
     <div className="flex w-full flex-col gap-3 pt-4 border-t border-black/[.08] dark:border-white/[.1]">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-semibold text-black dark:text-zinc-50">Files</h2>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          {currentUserId ? `Loaded for user: ${currentUserId}` : "Log in to load sender/recipient lists"}
-        </p>
-      </div>
+      <SectionHeader
+        title="Files"
+        description={currentUserId ? `Loaded for user: ${currentUserId}` : "Log in to load sender/recipient lists"}
+        className="gap-1"
+      />
 
       {isLoading && <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading files...</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <div className="grid grid-cols-1 gap-3">
-        <section className="rounded-xl border border-black/[.08] dark:border-white/[.12] p-3">
+        <Panel as="section" padding="sm">
           <h3 className="mb-2 text-sm font-semibold text-black dark:text-zinc-100">Sent (user_id)</h3>
           {sentFiles.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">No sent files</p>
@@ -84,9 +88,9 @@ export function FilesListControl({
               ))}
             </ul>
           )}
-        </section>
+        </Panel>
 
-        <section className="rounded-xl border border-black/[.08] dark:border-white/[.12] p-3">
+        <Panel as="section" padding="sm">
           <h3 className="mb-2 text-sm font-semibold text-black dark:text-zinc-100">Received (recipient_user_id)</h3>
           {receivedFiles.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">No received files</p>
@@ -102,7 +106,7 @@ export function FilesListControl({
               ))}
             </ul>
           )}
-        </section>
+        </Panel>
       </div>
     </div>
   );

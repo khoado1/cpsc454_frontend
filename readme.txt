@@ -1,5 +1,7 @@
 
-npx create-next-app@latest test_app
-cd test_app
+npx create-next-app@latest voxguard-frontend
+cd voxguard-frontend
 npm run dev
+
+
 

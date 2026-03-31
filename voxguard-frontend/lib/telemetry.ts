@@ -32,34 +32,56 @@ function telemetryEnabled(): boolean {
 // ---------------------------------------------------------------------------
 type TelemetryVendor = "sentry" | "datadog" | "none";
 
+type SentryClient = {
+  captureEvent: (event: {
+    message: string;
+    level: "error";
+    extra: Record<string, unknown>;
+  }) => void;
+  addBreadcrumb: (breadcrumb: {
+    category: string;
+    data: Record<string, unknown>;
+    level: "info";
+  }) => void;
+};
+
+type DatadogClient = {
+  datadogLogs?: {
+    logger: {
+      error: (message: string, context?: Record<string, unknown>) => void;
+      info: (message: string, context?: Record<string, unknown>) => void;
+    };
+  };
+};
+
 function getVendor(): TelemetryVendor {
   const v = process.env.NEXT_PUBLIC_TELEMETRY_VENDOR;
   if (v === "sentry" || v === "datadog") return v;
   return "none";
 }
 
-// Typed shim — the real SDKs are imported at runtime via dynamic require so that
-// their packages remain optional dev/prod dependencies.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSentryClient(): any | null {
+function loadOptionalModule<T>(moduleName: string): T | null {
   if (typeof window === "undefined") return null;
+
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require("@sentry/nextjs");
+    const runtimeRequire = eval("require") as ((name: string) => T) | undefined;
+    if (typeof runtimeRequire !== "function") {
+      return null;
+    }
+
+    return runtimeRequire(moduleName);
   } catch {
     return null;
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getDatadogClient(): any | null {
-  if (typeof window === "undefined") return null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require("@datadog/browser-logs");
-  } catch {
-    return null;
-  }
+// Typed shim — the real SDKs are resolved only at runtime so their packages stay optional.
+function getSentryClient(): SentryClient | null {
+  return loadOptionalModule<SentryClient>("@sentry/nextjs");
+}
+
+function getDatadogClient(): DatadogClient | null {
+  return loadOptionalModule<DatadogClient>("@datadog/browser-logs");
 }
 
 function emit(level: TelemetryLevel, event: string, payload: unknown): void {
@@ -68,6 +90,8 @@ function emit(level: TelemetryLevel, event: string, payload: unknown): void {
   }
 
   const vendor = getVendor();
+  let emitted = false;
+  let resolvedVendor: TelemetryVendor = vendor;
 
   if (vendor === "sentry") {
     const Sentry = getSentryClient();
@@ -85,6 +109,8 @@ function emit(level: TelemetryLevel, event: string, payload: unknown): void {
           level: "info",
         });
       }
+
+      emitted = true;
     }
   } else if (vendor === "datadog") {
     const { datadogLogs } = getDatadogClient() ?? {};
@@ -94,8 +120,13 @@ function emit(level: TelemetryLevel, event: string, payload: unknown): void {
       } else {
         datadogLogs.logger.info(event, { payload });
       }
+
+      emitted = true;
     }
-  } else {
+  }
+
+  if (!emitted) {
+    resolvedVendor = "none";
     // Fallback: dispatch a DOM CustomEvent so the debug harness can listen.
     if (typeof window !== "undefined") {
       window.dispatchEvent(
@@ -113,7 +144,10 @@ function emit(level: TelemetryLevel, event: string, payload: unknown): void {
 
   if (process.env.NODE_ENV !== "production") {
     // Useful in local dev when telemetry is enabled.
-    console[level === "error" ? "error" : "info"](`[telemetry:${vendor}] ${event}`, payload);
+    console[level === "error" ? "error" : "info"](
+      `[telemetry:${resolvedVendor}] ${event}`,
+      payload
+    );
   }
 }
 

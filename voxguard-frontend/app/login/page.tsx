@@ -3,7 +3,9 @@
 import { Card } from "@/components/ui/Card";
 import { PageSection } from "@/components/ui/PageSection";
 import { LoginControl } from "@/components/LoginControl";
-import { login } from "@/lib/api";
+import { getSubFromJwt, login } from "@/lib/api";
+import { fetchStoredPrivateKeyPackage, decryptStoredPrivateKey } from "@/lib/crypto";
+import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -11,6 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { setAuthCryptoContext } = useAuthCryptoContext();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,8 +28,17 @@ export default function LoginPage() {
 
     try {
       const token = await login(username, password);
-      // Store the token so the dashboard can use it
-      sessionStorage.setItem("accessToken", token);
+
+      const userKeyMaterial = await fetchStoredPrivateKeyPackage(token);
+      const privateKey = await decryptStoredPrivateKey(password, userKeyMaterial);
+
+      setAuthCryptoContext({
+        accessToken : token,
+        userId: getSubFromJwt(token),
+        privateKey: privateKey,
+        userKeyMaterial: userKeyMaterial,
+      });
+
       router.push("/dashboard");
     } catch (err) {
       setError("Login failed. Please check your username and password.");

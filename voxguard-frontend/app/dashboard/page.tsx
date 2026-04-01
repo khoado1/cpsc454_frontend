@@ -5,29 +5,14 @@ import { Button } from "@/components/ui/Button";
 import { PageSection } from "@/components/ui/PageSection";
 import { FilesListControl } from "@/components/FilesListControl";
 import { listBinaryFiles, type BinaryFileRecord } from "@/lib/api";
+import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-function getSubFromJwt(token: string): string | null {
-  try {
-    const payloadSegment = token.split(".")[1];
-    if (!payloadSegment) {
-      return null;
-    }
-
-    const normalized = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const payload = JSON.parse(atob(padded)) as { sub?: string };
-    return payload.sub ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { accessToken, userId, setAuthCryptoContext } = useAuthCryptoContext();
   const [sentFiles, setSentFiles] = useState<BinaryFileRecord[]>([]);
   const [receivedFiles, setReceivedFiles] = useState<BinaryFileRecord[]>([]);
   const [isFilesLoading, setIsFilesLoading] = useState(false);
@@ -35,16 +20,10 @@ export default function DashboardPage() {
 
   // On mount, check if user is logged in
   useEffect(() => {
-    const token = sessionStorage.getItem("accessToken");
-    if (!token) {
-      // Not logged in - redirect back to login
+    if (!accessToken) {
       router.push("/login");
-      return;
     }
-
-    setAccessToken(token);
-    setCurrentUserId(getSubFromJwt(token));
-  }, [router]);
+  }, [accessToken, router]);
 
   const handleLoadFiles = async () => {
     if (!accessToken || isFilesLoading) {
@@ -57,15 +36,15 @@ export default function DashboardPage() {
     try {
       const files = await listBinaryFiles(accessToken, { timeoutMs: 15000 });
 
-      if (!currentUserId) {
-        setFilesError("User id (sub) not found in JWT.");
+      if (!userId) {
+        setFilesError("User id not found in auth context.");
         setSentFiles([]);
         setReceivedFiles([]);
         return;
       }
 
-      setSentFiles(files.filter((file) => file.user_id === currentUserId));
-      setReceivedFiles(files.filter((file) => file.recipient_user_id === currentUserId));
+      setSentFiles(files.filter((file) => file.user_id === userId));
+      setReceivedFiles(files.filter((file) => file.recipient_user_id === userId));
     } catch (error) {
       console.error("Failed to list files:", error);
       setFilesError("Unable to load files for this user.");
@@ -77,7 +56,7 @@ export default function DashboardPage() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("accessToken");
+    setAuthCryptoContext({ accessToken: null, userId: null, privateKey: null, userKeyMaterial: null });
     router.push("/login");
   };
 
@@ -123,7 +102,7 @@ export default function DashboardPage() {
 
           <div className="mt-6">
             <FilesListControl
-              currentUserId={currentUserId}
+              currentUserId={userId}
               sentFiles={sentFiles}
               receivedFiles={receivedFiles}
               isLoading={isFilesLoading}

@@ -1,3 +1,21 @@
+import { BASE_URL } from "@/lib/config";
+
+// Crypto constants
+const PBKDF2_ITERATIONS = 600000;
+const PBKDF2_SALT_BYTES = 16;
+const AES_GCM_IV_BYTES = 12;
+
+
+export type StoredPrivateKeyPackage = {
+  encryptedPrivateKeyBase64: string;
+  saltBase64: string;
+  ivBase64: string;
+};
+
+type SaveKeyMaterialRequest = StoredPrivateKeyPackage & {
+  publicKeyBase64: string;
+};
+
 /**
  * Generates a 256-bit AES-GCM symmetric key.
  * Suitable for encrypting data (e.g. audio payloads).
@@ -38,13 +56,6 @@ export async function exportKeyToBase64(
   return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }
 
-import { BASE_URL } from "@/lib/config";
-export const KEY_MATERIAL_ENDPOINT = `${BASE_URL}/user/key-material`;
-
-const PBKDF2_ITERATIONS = 600000;
-const PBKDF2_SALT_BYTES = 16;
-const AES_GCM_IV_BYTES = 12;
-
 function bytesToBase64(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes));
 }
@@ -76,15 +87,6 @@ async function deriveWrappingKey(password: string, salt: Uint8Array): Promise<Cr
   );
 }
 
-export type StoredPrivateKeyPackage = {
-  encryptedPrivateKeyBase64: string;
-  saltBase64: string;
-  ivBase64: string;
-};
-
-type SaveKeyMaterialRequest = StoredPrivateKeyPackage & {
-  publicKeyBase64: string;
-};
 
 /**
  * Creates a keypair, encrypts the private key with a password-derived key,
@@ -92,7 +94,6 @@ type SaveKeyMaterialRequest = StoredPrivateKeyPackage & {
  */
 export async function createAndStoreUserKeyMaterial(
   password: string,
-  endpoint: string,
   accessToken?: string
 ): Promise<{ publicKeyBase64: string } & StoredPrivateKeyPackage> {
   const { publicKey, privateKey } = await generateKeyPair();
@@ -115,7 +116,7 @@ export async function createAndStoreUserKeyMaterial(
     ivBase64: bytesToBase64(iv),
   };
 
-  const response = await fetch(endpoint, {
+  const response = await fetch(`${BASE_URL}/user/key-material`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

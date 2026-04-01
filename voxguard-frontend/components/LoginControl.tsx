@@ -6,9 +6,14 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 type LoginControlProps = {
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void> | void;
   isSubmitting?: boolean;
+  isDisabled?: boolean;
 };
 
-export function LoginControl({ onSubmit, isSubmitting = false }: LoginControlProps) {
+export function LoginControl({
+  onSubmit,
+  isSubmitting = false,
+  isDisabled = false,
+}: LoginControlProps) {
   return (
     <>
       <SectionHeader
@@ -41,6 +46,7 @@ export function LoginControl({ onSubmit, isSubmitting = false }: LoginControlPro
 
         <Button
           type="submit"
+          disabled={isDisabled}
           fullWidth
           isLoading={isSubmitting}
           loadingText="Logging in..."

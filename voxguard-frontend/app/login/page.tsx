@@ -6,18 +6,29 @@ import { LoginControl } from "@/components/LoginControl";
 import { getSubFromJwt, login } from "@/lib/api";
 import { fetchStoredPrivateKeyPackage, decryptStoredPrivateKey } from "@/lib/crypto";
 import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
+import { hasRequiredAudioSupport } from "@/lib/audio-codec";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { setAuthCryptoContext } = useAuthCryptoContext();
+  const [isSupportedBrowser, setIsSupportedBrowser] = useState(true);
+
+  useEffect(() =>{
+    setIsSupportedBrowser(hasRequiredAudioSupport());
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (!isSupportedBrowser){
+      setError("Your browser does not support the required audio features. Please use a Chrome or Edge.");
+      return;
+    }
 
     setError(null);
     setIsSubmitting(true);
@@ -52,7 +63,16 @@ export default function LoginPage() {
     <PageSection grow centered>
       <main className="w-full max-w-md">
         <Card className="flex flex-col items-center gap-8" padding="xl">
-          <LoginControl onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+          <LoginControl 
+            onSubmit={handleSubmit} 
+            isSubmitting={isSubmitting} 
+            isDisabled={!isSupportedBrowser} 
+          />
+          {!isSupportedBrowser && (
+            <p className="text-sm text-amber-600 text-center">
+              Unsupported browser for recording.  Please use Chrome or Edge for now.
+            </p>
+          )}
           {error && (
             <p className="text-sm text-red-500 text-center">{error}</p>
           )}

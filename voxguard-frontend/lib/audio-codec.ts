@@ -1,42 +1,49 @@
+"use client";
 
-type EncodeToOpusOptions = {
+export const requiredMimeType = "audio/webm;codecs=opus";
+
+export type CodecEncoderOptions = {
     sampleRateHz?: number;
     channels?: number;
     bitrate?: number;
 };
 
-let wasmCodecInitialized = false;
-
-/**
- * Placeholder init step for the future WASM encoder.
- * Keep this call in your startup/recording flow so integration later is minimal.
- */
-export async function initAudioCodec(): Promise<void> {
-    if (typeof WebAssembly === "undefined") {
-        throw new Error("WebAssembly is not supported in this environment.");
+export function hasRequiredAudioSupport() : boolean {
+    if (typeof window === 'undefined' || typeof window.MediaRecorder === 'undefined') {
+        return false;
     }
 
-    // TODO: load and initialize OPUS WASM module here.
-    wasmCodecInitialized = true;
+    if (typeof window.MediaRecorder.isTypeSupported !== 'function') {
+        return false;
+    }
+
+    return typeof window !== 'undefined'
+        && window.MediaRecorder.isTypeSupported(requiredMimeType);
 }
 
-/**
- * Encodes PCM bytes to OPUS.
- * Current placeholder behavior is passthrough until WASM encoder is wired in.
- */
+export async function initAudioCodec() : Promise<void> {
+    checkWasmLoaded();
+
+    // TODO: WASM call setup and initialization logic here
+
+    wasmInitialized = true;
+}
+
 export async function encodeToOpus(
     pcmData: ArrayBuffer,
-    _options?: EncodeToOpusOptions
-): Promise<ArrayBuffer> {
-    if (typeof WebAssembly === "undefined") {
-        throw new Error("WebAssembly is not supported in this environment.");
-    }
+    options?: CodecEncoderOptions
+) : Promise<ArrayBuffer> {
+    
+    checkWasmLoaded();
 
-    if (!wasmCodecInitialized) {
-        await initAudioCodec();
-    }
+    if (!wasmInitialized) await initAudioCodec();
 
-    // TODO: replace with real OPUS encoding call against loaded WASM module.
-    // Example target: return opusEncoder.encode(pcmData, _options);
     return pcmData;
 }
+        
+function checkWasmLoaded() : void {
+    if (typeof(WebAssembly) === 'undefined')
+        throw new Error("WebAssembly is not supported in this environment.");
+}
+
+let wasmInitialized = false;

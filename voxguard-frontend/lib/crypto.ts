@@ -12,37 +12,79 @@ export type StoredPrivateKeyPackage = {
   ivBase64: string;
 };
 
+export type VGCryptoKeyType = {
+  algorithm: string;
+  key: CryptoKey;
+};
+
+export type VGKeyPairType = {
+  algorithm: string;
+  key: CryptoKeyPair;
+};
+
 type SaveKeyMaterialRequest = StoredPrivateKeyPackage & {
   publicKeyBase64: string;
 };
+
+export function generateIV() : Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(AES_GCM_IV_BYTES));
+}
+
+export function generateSalt() : Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(PBKDF2_SALT_BYTES));
+}
+
+export async function encryptWithSymmetricKey(key: CryptoKey, iv: Uint8Array, data: ArrayBuffer): Promise<ArrayBuffer> {
+  return await crypto.subtle.encrypt(
+    {name: "AES-GCM", iv: iv as BufferSource}, 
+    key, 
+    data,
+  );
+}
+
+export async function encryptSymmetricKeyWithPublicKey(symmetricKey: CryptoKey, publicKey: CryptoKey): Promise<ArrayBuffer> {
+  const rawSymmetricKey = await crypto.subtle.exportKey("raw", symmetricKey);
+
+  return await crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    publicKey,
+    rawSymmetricKey as BufferSource
+  );
+}
 
 /**
  * Generates a 256-bit AES-GCM symmetric key.
  * Suitable for encrypting data (e.g. audio payloads).
  */
-export async function generateSymmetricKey(): Promise<CryptoKey> {
-  return crypto.subtle.generateKey(
-    { name: "AES-GCM", length: 256 },
-    true,       // extractable — allows exporting the key
-    ["encrypt", "decrypt"]
-  );
+export async function generateSymmetricKey(): Promise<VGCryptoKeyType> {
+  return { 
+    algorithm: "AES-GCM",
+    key: await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,       // extractable — allows exporting the key
+      ["encrypt", "decrypt"]
+    )
+  };
 }
 
 /**
  * Generates an RSA-OAEP public/private key pair.
  * The public key encrypts data; the private key decrypts it.
  */
-export async function generateKeyPair(): Promise<CryptoKeyPair> {
-  return crypto.subtle.generateKey(
-    {
-      name: "RSA-OAEP",
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]), // 65537
-      hash: "SHA-256",
-    },
-    true,       // extractable — allows exporting keys
-    ["encrypt", "decrypt"]
-  );
+export async function generateKeyPair(): Promise<VGKeyPairType> {
+  return {
+      algorithm: "RSA-OAEP-SHA256", 
+      key: await crypto.subtle.generateKey(
+        {
+          name: "RSA-OAEP",
+          modulusLength: 2048,
+          publicExponent: new Uint8Array([1, 0, 1]), // 65537
+          hash: "SHA-256",
+        },
+        true,       // extractable — allows exporting keys
+        ["encrypt", "decrypt"]
+      )
+  };
 }
 
 /**
@@ -56,15 +98,15 @@ export async function exportKeyToBase64(
   return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
+export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-function base64ToBytes(value: string): Uint8Array {
+export function base64ToBytes(value: string): Uint8Array {
   return Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
 }
 
-async function deriveWrappingKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+export async function deriveWrappingKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
@@ -96,15 +138,15 @@ export async function createAndStoreUserKeyMaterial(
   password: string,
   accessToken?: string
 ): Promise<{ publicKeyBase64: string } & StoredPrivateKeyPackage> {
-  const { publicKey, privateKey } = await generateKeyPair();
+  const { key: { publicKey, privateKey } } = await generateKeyPair();
 
-  const salt = crypto.getRandomValues(new Uint8Array(PBKDF2_SALT_BYTES));
-  const iv = crypto.getRandomValues(new Uint8Array(AES_GCM_IV_BYTES));
+  const salt = generateSalt();
+  const iv = generateIV();
   const wrappingKey = await deriveWrappingKey(password, salt);
 
   const privateKeyPkcs8 = await crypto.subtle.exportKey("pkcs8", privateKey);
   const encryptedPrivateKey = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     wrappingKey,
     privateKeyPkcs8
   );
@@ -198,11 +240,11 @@ export async function decryptStoredPrivateKey(
  * Used in the send-message flow before encrypting audio for a recipient.
  */
 export async function fetchRecipientPublicKey(
-  email: string,
+  userName: string,
   accessToken: string
 ): Promise<CryptoKey> {
   const response = await fetch(
-    `${BASE_URL}/user/key-material?email=${encodeURIComponent(email)}`,
+    `${BASE_URL}/user/key-material?username=${encodeURIComponent(userName)}`,
     {
       method: "GET",
       headers: { Authorization: `Bearer ${accessToken}` },

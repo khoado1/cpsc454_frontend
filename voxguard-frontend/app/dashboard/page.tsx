@@ -7,7 +7,9 @@ import { FilesListControl } from "@/components/FilesListControl";
 import { listBinaryFiles, type BinaryFileRecord } from "@/lib/api";
 import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useDashboardController } from "@/lib/useDashboardController";
+import { sendRecordingToRecipient } from "@/lib/audio-processing";
 
 
 export default function DashboardPage() {
@@ -17,6 +19,16 @@ export default function DashboardPage() {
   const [receivedFiles, setReceivedFiles] = useState<BinaryFileRecord[]>([]);
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState<string | null>(null);
+
+  const dashboardController = useDashboardController(
+    useMemo(() => ({
+      sendRecordingToRecipient: async (userId, recording) => {
+          if(!accessToken) throw new Error("Must be logged in to send recording.");
+          
+          await sendRecordingToRecipient(accessToken, userId, recording.data);
+      },
+    }), [accessToken])
+  );
 
   // On mount, check if user is logged in
   useEffect(() => {

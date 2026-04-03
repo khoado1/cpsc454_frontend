@@ -2,7 +2,7 @@
 
 import { requiredMimeType as RequiredMimeType } from "./audio-codec";
 
-import { RecordingReadyPayload, RecordingReadyOptions } from "./audio-processing";
+import { RecordingReadyOptions } from "./audio-processing";
 
 import { useRef, useState } from "react";
 
@@ -39,7 +39,7 @@ export function useRecorder(options?: RecordingReadyOptions) {
       chunks.current = [];
       if (options?.onRecordingReady) {
         await options.onRecordingReady({
-          audioData: arrayBuffer,
+          data: arrayBuffer,
           mimeType: actualMimeType
         });
       }

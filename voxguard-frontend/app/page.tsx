@@ -8,7 +8,6 @@ import { RecorderControl } from "@/components/RecorderControl";
 import { PageSection } from "@/components/ui/PageSection";
 import { downloadBinaryFile, listBinaryFiles, login, registerAndSetupKeys, type BinaryFileRecord } from "@/lib/api";
 import { useState, useRef } from "react";
-import { useRecorder } from "@/lib/useRecorder";
 
 function getSubFromJwt(token: string): string | null {
   try {
@@ -27,7 +26,6 @@ function getSubFromJwt(token: string): string | null {
 }
 
 export default function Home() {
-  const { recording, startRecording, stopRecording } = useRecorder();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [sentFiles, setSentFiles] = useState<BinaryFileRecord[]>([]);
@@ -151,11 +149,7 @@ export default function Home() {
           <RegisterControl onSubmit={handleRegister} isSubmitting={isRegistering} />
           <div className="w-full border-t border-black/[.08] dark:border-white/[.1]" />
           <LoginControl onSubmit={handleLogin} isSubmitting={isLoggingIn} />
-          <RecorderControl
-            recording={recording}
-            onStart={startRecording}
-            onStop={stopRecording}
-          />
+          <RecorderControl />
           <FilesListControl
             currentUserId={currentUserId}
             sentFiles={sentFiles}

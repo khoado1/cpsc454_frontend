@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useDashboardController } from "@/lib/useDashboardController";
 import { sendRecordingToRecipient } from "@/lib/audio-processing";
-
+import { Input } from "@/components/ui/Input";
+import { RecorderControl } from "@/components/RecorderControl";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -30,17 +31,8 @@ export default function DashboardPage() {
     }), [accessToken])
   );
 
-  // On mount, check if user is logged in
-  useEffect(() => {
-    if (!accessToken) {
-      router.push("/login");
-    }
-  }, [accessToken, router]);
-
-  const handleLoadFiles = async () => {
-    if (!accessToken || isFilesLoading) {
-      return;
-    }
+  const handleLoadFiles = useCallback(async () => {
+    if (!accessToken) return;
 
     setFilesError(null);
     setIsFilesLoading(true);
@@ -65,7 +57,24 @@ export default function DashboardPage() {
     } finally {
       setIsFilesLoading(false);
     }
-  };
+  }, [accessToken, userId]);
+
+  useEffect(
+    () => {
+      if (dashboardController.sendStatus == "success"){
+        handleLoadFiles();
+        const timer = setTimeout(() => {dashboardController.sendReset();}, 3000);
+        return () => clearTimeout(timer);
+      }
+    }, [dashboardController.sendStatus, dashboardController.sendReset, handleLoadFiles]
+  );
+
+  // On mount, check if user is logged in
+  useEffect(() => {
+    if (!accessToken) {
+      router.push("/login");
+    }
+  }, [accessToken, router]);
 
   const handleLogout = () => {
     setAuthCryptoContext({ accessToken: null, userId: null, privateKey: null, userKeyMaterial: null });
@@ -121,6 +130,41 @@ export default function DashboardPage() {
               error={filesError}
             />
           </div>
+
+          <div className="mt-6 flex flex-col gap-3 border-t border-black/[.08] dark:border-white/[.08] pt-4">
+            <p className="text-sm text-zinc-700 dark:text-zinc-400">Send a recording</p>
+            <Input
+              type="text"
+              value={dashboardController.recipientUserId ?? ""}
+              onChange={(event) => {
+                const nextValue = event.target.value.trim();
+                dashboardController.setRecipient(nextValue.length > 0 ? nextValue : null);
+              }}
+              placeholder="Recipient User ID">
+            </Input>
+            <RecorderControl onRecordingReady={dashboardController.onRecordingReady} />
+
+            {dashboardController.pendingRecording && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Recording Ready {Math.round(dashboardController.pendingRecording.data.byteLength/1024)} KB</p>
+            )}
+            <Button
+              type="button"
+              variant="success"
+              size="md"
+              onClick={() => dashboardController.sendRecording()}
+              isLoading={dashboardController.sendStatus === "sending"}
+              loadingText="Sending..."
+              >
+              Send Recording
+            </Button>
+            {dashboardController.sendStatus === "success" && (
+              <p className="text-sm text-green-600 dark:text-green-400">Recording sent successfully!</p>
+            )}
+            {dashboardController.sendError && (
+              <p className="text-sm text-red-500">Failed to send recording: {dashboardController.sendError}</p>
+            )}
+          </div>
+
         </Card>
       </PageSection>
     </PageSection>

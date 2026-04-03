@@ -90,7 +90,7 @@ export async function generateKeyPair(): Promise<VGKeyPairType> {
 /**
  * Exports a CryptoKey to a Base64 string for storage or transmission.
  */
-export async function exportKeyToBase64(
+export async function exportPublicKeyToBase64(
   key: CryptoKey,
   format: "raw" | "spki" | "pkcs8"
 ): Promise<string> {
@@ -152,7 +152,7 @@ export async function createAndStoreUserKeyMaterial(
   );
 
   const payload: SaveKeyMaterialRequest = {
-    publicKeyBase64: await exportKeyToBase64(publicKey, "spki"),
+    publicKeyBase64: await exportPublicKeyToBase64(publicKey, "spki"),
     encryptedPrivateKeyBase64: bytesToBase64(new Uint8Array(encryptedPrivateKey)),
     saltBase64: bytesToBase64(salt),
     ivBase64: bytesToBase64(iv),

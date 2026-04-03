@@ -9,7 +9,8 @@ export type SendRecordingEvent =
     | { type: "send-started" }
     | { type: "send-succeeded" }
     | { type: "send-failed"; error: string }
-    | { type: "send-validation-failed"; error: string };
+    | { type: "send-validation-failed"; error: string }
+    | { type: "send-reset"};
 
 export const initialSendRecordingState: SendRecordingState = {
     sendStatus: "idle",
@@ -39,6 +40,12 @@ export function sendRecordingTransition(
                 ...state,
                 sendStatus: "error",
                 sendError: event.error,
+            };
+        case "send-reset":
+            return {
+                ...state,
+                sendStatus: "idle",
+                sendError: null,
             };
         default:
             return state;

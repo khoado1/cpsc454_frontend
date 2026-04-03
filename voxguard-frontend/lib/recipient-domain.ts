@@ -3,7 +3,7 @@ export type RecipientState = {
     recipientUserId: string | null;
 };
 
-export type RecipientEvent = { type: "set-recipient"; recipientUserId: string };
+export type RecipientEvent = { type: "set-recipient"; recipientUserId: string | null };
 
 export const initialRecipientState: RecipientState = {
     recipientUserId: null,

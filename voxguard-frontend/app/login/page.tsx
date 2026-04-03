@@ -26,7 +26,7 @@ export default function LoginPage() {
     if (isSubmitting) return;
 
     if (!isSupportedBrowser){
-      setError("Your browser does not support the required audio features. Please use a Chrome or Edge.");
+      setError("Your browser does not support the required audio features. Please use Chrome or Edge.");
       return;
     }
 

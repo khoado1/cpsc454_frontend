@@ -27,10 +27,11 @@ type DashboardCoreEvent = { type: "dashboard" };
 export type DashboardState = DashboardCoreState & RecipientState & RecordingState & SendRecordingState;
 
 export type DashboardCommands = {
-    setRecipient: (userId: string) => void;
+    setRecipient: (userId: string | null) => void;
     clearPendingRecording: () => void;
     sendRecording: (userId?: string, recording?: RecordingPayload) => Promise<void>;
     onRecordingReady: (payload: RecordingPayload) => Promise<void>;
+    sendReset: () => void;
 };
 
 export type DashboardController = DashboardState & DashboardCommands;
@@ -66,6 +67,7 @@ function asSendRecordingEvent(event: DashboardEvent): SendRecordingEvent | null 
         case "send-succeeded":
         case "send-failed":
         case "send-validation-failed":
+        case "send-reset":
             return event;
         default:
             return null;
@@ -106,6 +108,7 @@ export function dashboardTransition(
         case "send-succeeded":
         case "send-validation-failed":
         case "send-failed":
+        case "send-reset":
             return {
                 ...state,
                 ...nextRecipientState,
@@ -130,7 +133,7 @@ export type DashboardCommandFactory = {
 export const dashboardCommandFactory: DashboardCommandFactory = {
     create: ({ deps, state, send }) => ({
 
-        setRecipient: (userId: string) => {
+        setRecipient: (userId: string | null) => {
             send({ type: "set-recipient", recipientUserId: userId });
         },
 
@@ -167,6 +170,9 @@ export const dashboardCommandFactory: DashboardCommandFactory = {
                     error: error instanceof Error ? error.message : "Failed to send recording.",
                 });
             }
+        },
+        sendReset: () => {
+            send({ type: "send-reset" });
         },
     }),
 };

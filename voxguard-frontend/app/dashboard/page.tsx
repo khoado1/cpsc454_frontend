@@ -104,8 +104,14 @@ export default function DashboardPage() {
         </Button>
       </header>
 
-      <PageSection className="justify-start gap-6" as="main" grow background={false} padding="lg">
-        <Card className="w-full max-w-7xl">
+      <PageSection
+        as="main"
+        grow
+        background={false}
+        className="grid grid-cols-1 items-start gap-6 xl:grid-cols-12"
+      >
+        <div className="min-w-0 xl:col-span-7">
+          <Card className="w-full">
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">You are logged in.</p>
           <p className="text-xs text-zinc-400 dark:text-zinc-600 break-all">
             Token: {accessToken.slice(0, 40)}...
@@ -120,7 +126,7 @@ export default function DashboardPage() {
             loadingText="Loading files..."
             onClick={handleLoadFiles}
           >
-            Load Files
+            Load Messages
           </Button>
 
           <div className="mt-6">
@@ -132,9 +138,12 @@ export default function DashboardPage() {
               error={filesError}
             />
           </div>
-        </Card>
-        <Card className="w-full max-w-md">
-          <div className="mt-6 flex flex-col gap-3 border-t border-black/[.08] dark:border-white/[.08] pt-4">
+          </Card>
+        </div>
+
+        <div className="min-w-0 xl:col-span-5 xl:sticky xl:top-6 self-start">
+          <Card className="w-full">
+            <div className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.08]">
             <p className="text-sm text-zinc-700 dark:text-zinc-400">Send a recording</p>
             <Input
               type="text"
@@ -166,8 +175,9 @@ export default function DashboardPage() {
             {dashboardController.sendError && (
               <p className="text-sm text-red-500">Failed to send recording: {dashboardController.sendError}</p>
             )}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </div>
       </PageSection>
     </PageSection>
   );

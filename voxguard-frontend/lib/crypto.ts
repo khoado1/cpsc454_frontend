@@ -179,9 +179,10 @@ export async function createAndStoreUserKeyMaterial(
  * The returned values can be used with the same password to decrypt the private key locally.
  */
 export async function fetchStoredPrivateKeyPackage(
-  endpoint: string,
   accessToken?: string
 ): Promise<StoredPrivateKeyPackage> {
+
+  const endpoint: string = `${BASE_URL}/user/key-material`;
   const response = await fetch(endpoint, {
     method: "GET",
     headers: {

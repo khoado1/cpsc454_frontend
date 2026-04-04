@@ -47,7 +47,7 @@ export default function DashboardPage() {
         return;
       }
 
-      setSentFiles(files.filter((file) => file.user_id === userId));
+      setSentFiles(files.filter((file) => file.owner_user_id === userId));
       setReceivedFiles(files.filter((file) => file.recipient_user_id === userId));
     } catch (error) {
       console.error("Failed to list files:", error);
@@ -61,12 +61,14 @@ export default function DashboardPage() {
 
   useEffect(
     () => {
-      if (dashboardController.sendStatus == "success"){
+      if (dashboardController.sendStatus === "success") {
         handleLoadFiles();
-        const timer = setTimeout(() => {dashboardController.sendReset();}, 3000);
+        const timer = setTimeout(() => {
+          dashboardController.sendReset();
+        }, 3000);
         return () => clearTimeout(timer);
       }
-    }, [dashboardController.sendStatus, dashboardController.sendReset, handleLoadFiles]
+    }, [dashboardController.sendStatus, handleLoadFiles]
   );
 
   // On mount, check if user is logged in
@@ -102,8 +104,8 @@ export default function DashboardPage() {
         </Button>
       </header>
 
-      <PageSection as="main" grow centered background={false} padding="lg">
-        <Card className="w-full max-w-md">
+      <PageSection className="justify-start gap-6" as="main" grow background={false} padding="lg">
+        <Card className="w-full max-w-7xl">
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">You are logged in.</p>
           <p className="text-xs text-zinc-400 dark:text-zinc-600 break-all">
             Token: {accessToken.slice(0, 40)}...
@@ -130,7 +132,8 @@ export default function DashboardPage() {
               error={filesError}
             />
           </div>
-
+        </Card>
+        <Card className="w-full max-w-md">
           <div className="mt-6 flex flex-col gap-3 border-t border-black/[.08] dark:border-white/[.08] pt-4">
             <p className="text-sm text-zinc-700 dark:text-zinc-400">Send a recording</p>
             <Input
@@ -164,7 +167,6 @@ export default function DashboardPage() {
               <p className="text-sm text-red-500">Failed to send recording: {dashboardController.sendError}</p>
             )}
           </div>
-
         </Card>
       </PageSection>
     </PageSection>

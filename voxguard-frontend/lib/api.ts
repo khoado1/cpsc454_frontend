@@ -27,9 +27,12 @@ export type ApiCallOptions = {
 };
 
 export type BinaryFileRecord = {
-  id: string;
-  user_id: string;
+  upload_id: string;
+  owner_user_id: string;
   recipient_user_id: string;
+  is_read: boolean;
+  created_at: string;
+  data_length: number;
 };
 
 export class ApiRequestError extends Error {
@@ -142,12 +145,14 @@ export async function login(
 
 export async function uploadBinaryData(
   id: string,
+  recipientUserId: string,
   binaryData: ArrayBuffer,
   accessToken: string,
   options?: ApiCallOptions
 ): Promise<void> {
   const formData = new FormData();
   formData.append("id", id);
+  formData.append("recipient_user_id", recipientUserId);
   formData.append("binary_data", new Blob([binaryData]));
 
   await requestRaw(

@@ -47,7 +47,7 @@ export default function Home() {
 
     try {
       const files = await listBinaryFiles(accessToken);
-      setSentFiles(files.filter((file) => file.user_id === userId));
+      setSentFiles(files.filter((file) => file.owner_user_id === userId));
       setReceivedFiles(files.filter((file) => file.recipient_user_id === userId));
     } catch (err) {
       console.error("Failed to load files:", err);
@@ -74,7 +74,7 @@ export default function Home() {
     setIsAudioLoading(true);
 
     try {
-      const blob = await downloadBinaryFile(file.id, accessToken);
+      const blob = await downloadBinaryFile(file.upload_id, accessToken);
       const url = URL.createObjectURL(blob);
       audioBlobUrlRef.current = url;
       setAudioUrl(url);
@@ -156,12 +156,12 @@ export default function Home() {
             receivedFiles={receivedFiles}
             isLoading={isFilesLoading}
             error={filesError}
-            selectedFileId={selectedFile?.id ?? null}
+            selectedFileId={selectedFile?.upload_id ?? null}
             onFileSelect={handleFileSelect}
           />
           <PlayerControl
             audioUrl={audioUrl}
-            fileName={selectedFile?.id ?? null}
+            fileName={selectedFile?.upload_id ?? null}
             isLoading={isAudioLoading}
             error={audioError}
           />

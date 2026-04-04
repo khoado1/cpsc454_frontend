@@ -44,7 +44,7 @@ export async function sendRecordingToRecipient(accessToken: string, recipientUse
     const payload = await setupSendRecordingPayload(data, recipientPublicKey);
 
     const fieldId = `${recipientUser}-${Date.now()}`;
-    await uploadBinaryData(fieldId, payload.encryptedData, accessToken);
+    await uploadBinaryData(fieldId, recipientUser, payload.encryptedData, accessToken);
     
     return fieldId;
 

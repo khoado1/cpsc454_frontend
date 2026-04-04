@@ -23,31 +23,43 @@ function FileRow({
   onSelect?: (file: BinaryFileRecord) => void;
 }) {
   return (
-    <li
-      className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-        isSelected
-          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-          : "border-black/[.08] dark:border-white/[.12]"
-      }`}
+    <tr className={`border-b border-black[.08] dark:border-white[.12] transition-colors ${
+      isSelected 
+        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+      }`
+    }
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-black dark:text-zinc-100 truncate">{file.id ?? "(no id)"}</p>
-          <p className="text-zinc-600 dark:text-zinc-400">sender: {file.user_id ?? "unknown"}</p>
-          <p className="text-zinc-600 dark:text-zinc-400">recipient: {file.recipient_user_id ?? "unknown"}</p>
-        </div>
-        {onSelect && (
+      <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 truncate">
+        {file.upload_id ?? "(no id)"}
+      </td>
+      <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 truncate">
+        {file.owner_user_id ?? "(unknown)"}
+      </td>
+      <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 truncate">
+        {file.recipient_user_id ?? "(unkown)"}
+      </td>
+      <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 text-center">
+        {file.is_read ?"yes" : "no"}
+      </td>
+      <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-400">
+        {file.created_at ?? "(unkown)"}
+      </td>
+      <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400 text-right">
+        {Math.round(file.data_length/1024) ?? "(unknown)"} KB
+      </td>
+      <td className="px-4 py-3 text-right">
+          {onSelect && (
           <Button
             onClick={() => onSelect(file)}
             variant="info"
             size="sm"
-            className="shrink-0"
           >
             {isSelected ? "▶ Playing" : "▶ Play"}
           </Button>
         )}
-      </div>
-    </li>
+      </td>
+    </tr>
   );
 }
 
@@ -73,20 +85,35 @@ export function FilesListControl({
 
       <div className="grid grid-cols-1 gap-3">
         <Panel as="section" padding="sm">
-          <h3 className="mb-2 text-sm font-semibold text-black dark:text-zinc-100">Sent (user_id)</h3>
+          <h3 className="mb-4 text-sm font-semibold text-black dark:text-zinc-100">Sent (user_id)</h3>
           {sentFiles.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">No sent files</p>
           ) : (
-            <ul className="space-y-2">
-              {sentFiles.map((file) => (
-                <FileRow
-                  key={`sent-${file.id}-${file.user_id}-${file.recipient_user_id}`}
-                  file={file}
-                  isSelected={selectedFileId === file.id}
-                  onSelect={onFileSelect}
-                />
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-black[.12] dark:border-white[.12] bg-zinc-50 dark:bg-zinc-800/50">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Upload ID</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Owner User ID</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Recipient User ID</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-black dark:text-zinc-100">Read</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Created At</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-black dark:text-zinc-100">Data Length</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-black dark:text-zinc-100">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sentFiles.map((file) => (
+                    <FileRow
+                      key={`sent-${file.upload_id}-${file.owner_user_id}-${file.recipient_user_id}`}
+                      file={file}
+                      isSelected={selectedFileId === file.upload_id}
+                      onSelect={onFileSelect}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
 
@@ -95,16 +122,31 @@ export function FilesListControl({
           {receivedFiles.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">No received files</p>
           ) : (
-            <ul className="space-y-2">
-              {receivedFiles.map((file) => (
-                <FileRow
-                  key={`recv-${file.id}-${file.user_id}-${file.recipient_user_id}`}
-                  file={file}
-                  isSelected={selectedFileId === file.id}
-                  onSelect={onFileSelect}
-                />
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-black[.12] dark:border-white[.12] bg-zinc-50 dark:bg-zinc-800/50">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Upload ID</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Owner User ID</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Recipient User ID</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-black dark:text-zinc-100">Read</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-black dark:text-zinc-100">Created At</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-black dark:text-zinc-100">Data Length</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-black dark:text-zinc-100">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receivedFiles.map((file) => (
+                    <FileRow
+                      key={`received-${file.upload_id}-${file.owner_user_id}-${file.recipient_user_id}`}
+                      file={file}
+                      isSelected={selectedFileId === file.upload_id}
+                      onSelect={onFileSelect}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
       </div>

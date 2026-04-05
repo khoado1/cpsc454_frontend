@@ -6,7 +6,8 @@ import { PlayerControl } from "@/components/PlayerControl";
 import { RegisterControl } from "@/components/RegisterControl";
 import { RecorderControl } from "@/components/RecorderControl";
 import { PageSection } from "@/components/ui/PageSection";
-import { downloadBinaryFile, listBinaryFiles, login, registerAndSetupKeys, type BinaryFileRecord } from "@/lib/api";
+import { downloadBinaryFile, listBinaryFiles, login, type MessageInfo } from "@/lib/api";
+import { registerAndSetupKeys } from "@/lib/key-material";
 import { useState, useRef } from "react";
 
 function getSubFromJwt(token: string): string | null {
@@ -28,12 +29,12 @@ function getSubFromJwt(token: string): string | null {
 export default function Home() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [sentFiles, setSentFiles] = useState<BinaryFileRecord[]>([]);
-  const [receivedFiles, setReceivedFiles] = useState<BinaryFileRecord[]>([]);
+  const [sentFiles, setSentFiles] = useState<MessageInfo[]>([]);
+  const [receivedFiles, setReceivedFiles] = useState<MessageInfo[]>([]);
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState<string | null>(null);
 
-  const [selectedFile, setSelectedFile] = useState<BinaryFileRecord | null>(null);
+  const [selectedFile, setSelectedFile] = useState<MessageInfo | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -47,8 +48,8 @@ export default function Home() {
 
     try {
       const files = await listBinaryFiles(accessToken);
-      setSentFiles(files.filter((file) => file.owner_user_id === userId));
-      setReceivedFiles(files.filter((file) => file.recipient_user_id === userId));
+      setSentFiles(files.filter((file) => file.sender_user_id === userId));
+      setReceivedFiles(files.filter((file) => file.receiver_user_id === userId));
     } catch (err) {
       console.error("Failed to load files:", err);
       setFilesError("Unable to load files for this user.");
@@ -59,7 +60,7 @@ export default function Home() {
     }
   };
 
-  const handleFileSelect = async (file: BinaryFileRecord) => {
+  const handleFileSelect = async (file: MessageInfo) => {
     if (!accessToken) return;
 
     // Revoke previous blob URL to free memory
@@ -74,7 +75,7 @@ export default function Home() {
     setIsAudioLoading(true);
 
     try {
-      const blob = await downloadBinaryFile(file.upload_id, accessToken);
+      const blob = await downloadBinaryFile(file.file_id, accessToken);
       const url = URL.createObjectURL(blob);
       audioBlobUrlRef.current = url;
       setAudioUrl(url);
@@ -156,12 +157,12 @@ export default function Home() {
             receivedFiles={receivedFiles}
             isLoading={isFilesLoading}
             error={filesError}
-            selectedFileId={selectedFile?.upload_id ?? null}
+            selectedFileId={selectedFile?.file_id ?? null}
             onFileSelect={handleFileSelect}
           />
           <PlayerControl
             audioUrl={audioUrl}
-            fileName={selectedFile?.upload_id ?? null}
+            fileName={selectedFile?.file_id ?? null}
             isLoading={isAudioLoading}
             error={audioError}
           />

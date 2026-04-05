@@ -1,16 +1,9 @@
-import { BASE_URL } from "@/lib/config";
+import { UserKeyMaterialInfo } from "./types";
 
 // Crypto constants
 const PBKDF2_ITERATIONS = 600000;
 const PBKDF2_SALT_BYTES = 16;
 const AES_GCM_IV_BYTES = 12;
-
-
-export type StoredPrivateKeyPackage = {
-  encryptedPrivateKeyBase64: string;
-  saltBase64: string;
-  ivBase64: string;
-};
 
 export type VGCryptoKeyType = {
   algorithm: string;
@@ -20,10 +13,6 @@ export type VGCryptoKeyType = {
 export type VGKeyPairType = {
   algorithm: string;
   key: CryptoKeyPair;
-};
-
-type SaveKeyMaterialRequest = StoredPrivateKeyPackage & {
-  publicKeyBase64: string;
 };
 
 export function generateIV() : Uint8Array {
@@ -129,93 +118,16 @@ export async function deriveWrappingKey(password: string, salt: Uint8Array): Pro
   );
 }
 
-
 /**
- * Creates a keypair, encrypts the private key with a password-derived key,
- * and sends public + encrypted private key material to your backend.
- */
-export async function createAndStoreUserKeyMaterial(
-  password: string,
-  accessToken?: string
-): Promise<{ publicKeyBase64: string } & StoredPrivateKeyPackage> {
-  const { key: { publicKey, privateKey } } = await generateKeyPair();
-
-  const salt = generateSalt();
-  const iv = generateIV();
-  const wrappingKey = await deriveWrappingKey(password, salt);
-
-  const privateKeyPkcs8 = await crypto.subtle.exportKey("pkcs8", privateKey);
-  const encryptedPrivateKey = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
-    wrappingKey,
-    privateKeyPkcs8
-  );
-
-  const payload: SaveKeyMaterialRequest = {
-    publicKeyBase64: await exportPublicKeyToBase64(publicKey, "spki"),
-    encryptedPrivateKeyBase64: bytesToBase64(new Uint8Array(encryptedPrivateKey)),
-    saltBase64: bytesToBase64(salt),
-    ivBase64: bytesToBase64(iv),
-  };
-
-  const response = await fetch(`${BASE_URL}/user/key-material`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to store key material: ${response.status}`);
-  }
-
-  return payload;
-}
-
-/**
- * Fetches encrypted private key package from your backend.
- * The returned values can be used with the same password to decrypt the private key locally.
- */
-export async function fetchStoredPrivateKeyPackage(
-  accessToken?: string
-): Promise<StoredPrivateKeyPackage> {
-
-  const endpoint: string = `${BASE_URL}/user/key-material`;
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: {
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch key material: ${response.status}`);
-  }
-
-  const data = (await response.json()) as Partial<StoredPrivateKeyPackage>;
-  if (!data.encryptedPrivateKeyBase64 || !data.saltBase64 || !data.ivBase64) {
-    throw new Error("Server response is missing encryptedPrivateKeyBase64, saltBase64, or ivBase64");
-  }
-
-  return {
-    encryptedPrivateKeyBase64: data.encryptedPrivateKeyBase64,
-    saltBase64: data.saltBase64,
-    ivBase64: data.ivBase64,
-  };
-}
-
-/**
- * Optional helper to decrypt previously stored private key package.
+ * Decrypts a previously stored private key package.
  */
 export async function decryptStoredPrivateKey(
   password: string,
-  keyPackage: StoredPrivateKeyPackage
+  keyPackage: UserKeyMaterialInfo
 ): Promise<CryptoKey> {
-  const salt = base64ToBytes(keyPackage.saltBase64);
-  const iv = base64ToBytes(keyPackage.ivBase64);
-  const encryptedPrivateKey = base64ToBytes(keyPackage.encryptedPrivateKeyBase64);
+  const salt = base64ToBytes(keyPackage.salt_base64);
+  const iv = base64ToBytes(keyPackage.iv_base64);
+  const encryptedPrivateKey = base64ToBytes(keyPackage.encrypted_private_key_base64);
   const wrappingKey = await deriveWrappingKey(password, salt);
 
   const pkcs8 = await crypto.subtle.decrypt(
@@ -236,37 +148,17 @@ export async function decryptStoredPrivateKey(
   );
 }
 
-/**
- * Fetches another user's public key by email so you can encrypt a symmetric key for them.
- * Used in the send-message flow before encrypting audio for a recipient.
- */
-export async function fetchRecipientPublicKey(
-  userName: string,
-  accessToken: string
+export async function importKeyFromBase64(
+  keyBase64: string,
 ): Promise<CryptoKey> {
-  const response = await fetch(
-    `${BASE_URL}/user/key-material?username=${encodeURIComponent(userName)}`,
-    {
-      method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
+  
+  const keyBytes = Uint8Array.from(atob(keyBase64), (i) => i.charCodeAt(0));
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch recipient public key: ${response.status}`);
-  }
-
-  const data = (await response.json()) as { publicKeyBase64?: string };
-  if (!data.publicKeyBase64) {
-    throw new Error("Server response is missing publicKeyBase64");
-  }
-
-  const keyBytes = Uint8Array.from(atob(data.publicKeyBase64), (c) => c.charCodeAt(0));
   return crypto.subtle.importKey(
-    "spki",
-    keyBytes,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    false,
-    ["encrypt"]
-  );
+        "spki",
+        keyBytes,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["encrypt"]
+    );
 }

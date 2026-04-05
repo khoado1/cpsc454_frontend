@@ -1,6 +1,14 @@
 import { BASE_URL } from "@/lib/config";
-import { createAndStoreUserKeyMaterial } from "@/lib/crypto";
 import { captureApiOutcome } from "@/lib/telemetry";
+import { UserKeyMaterialInfo } from "./types";
+
+// API endpoint URL constants
+const URL_REGISTER = `${BASE_URL}/register`;
+const URL_LOGIN = `${BASE_URL}/login`;
+const URL_USERS = `${BASE_URL}/users`;
+const URL_USERS_KEY_MATERIAL = `${BASE_URL}/users/me/key-material`;
+const URL_MESSAGES = `${BASE_URL}/messages`;
+const URL_MESSAGES_FILE_ID = (file_id: string) => `${BASE_URL}/messages/{encodeURIComponent(file_id)}`;
 
 export type ApiErrorKind = "network" | "timeout" | "aborted" | "http" | "parse" | "unknown";
 
@@ -26,13 +34,19 @@ export type ApiCallOptions = {
   timeoutMs?: number;
 };
 
-export type BinaryFileRecord = {
-  upload_id: string;
-  owner_user_id: string;
-  recipient_user_id: string;
+export type UserInfo = {
+  user_id: string;
+  username: string;
+  public_key_base64: string;
+};
+
+export type MessageInfo = {
+  file_id: string;
+  sender_user_id: string;
+  receiver_user_id: string;
   is_read: boolean;
-  created_at: string;
   data_length: number;
+  created_at: string;
 };
 
 export class ApiRequestError extends Error {
@@ -55,6 +69,158 @@ export class ApiRequestError extends Error {
     this.status = status;
     this.details = details;
   }
+}
+
+export async function register(
+  username: string,
+  password: string,
+  options?: ApiCallOptions
+): Promise<void> {
+  await requestRaw(
+    "register",
+    URL_REGISTER,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    },
+    options
+  );
+}
+
+export async function login(
+  username: string,
+  password: string,
+  options?: ApiCallOptions
+): Promise<string> {
+  const data = await requestJson<{ access_token: string }>(
+    "login",
+    URL_LOGIN,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    },
+    options
+  );
+
+  // data = { access_token, token_type, expires_in }
+  return data.access_token;
+}
+
+export async function getUsers(
+  accessToken: string,
+  options?: ApiCallOptions
+): Promise<UserInfo[]> {
+  const data = await requestJson<{ users?: UserInfo[] }>(
+    "getUsers",
+    URL_USERS,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+    options
+  );
+
+  return data.users as UserInfo[] || [];
+}
+
+export async function saveUserKeyMaterial(
+  payload: UserKeyMaterialInfo,
+  accessToken?: string,
+  options?: ApiCallOptions
+): Promise<void> {
+  await requestRaw(
+    "saveUserKeyMaterial",
+    URL_USERS_KEY_MATERIAL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    },
+    options
+  );
+}
+
+export async function getUserKeyMaterial(
+  accessToken?: string,
+  options?: ApiCallOptions
+): Promise<UserKeyMaterialInfo> {
+  const data = await requestJson<UserKeyMaterialInfo>(
+    "getMyKeyMaterial",
+    URL_USERS_KEY_MATERIAL,
+    {
+      method: "GET",
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    },
+    options
+  );
+  if (!data.encrypted_private_key_base64 || !data.salt_base64 || !data.iv_base64) {
+    throw new Error("Server response is missing encrypted_private_key_base64, salt_base64, or iv_base64");
+  }
+
+  return data;
+}
+
+export async function uploadBinaryData(
+  data: ArrayBuffer,
+  receiver_user_id: string,
+  request_id: string,
+  accessToken: string,
+  options?: ApiCallOptions
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("data", new Blob([data]));
+  formData.append("receiver_user_id", receiver_user_id);
+  formData.append("request_id", request_id);
+
+  await requestRaw(
+    "uploadBinaryData",
+    URL_MESSAGES,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+    },
+    options
+  );
+}
+
+export async function listBinaryFiles(
+  accessToken: string,
+  options?: ApiCallOptions
+): Promise<MessageInfo[]> {
+  
+  return await requestJson<MessageInfo[]>(
+    "listBinaryFiles",
+    URL_MESSAGES,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+    options
+  );
+}
+
+export async function downloadBinaryFile(
+  id: string,
+  accessToken: string,
+  options?: ApiCallOptions
+): Promise<Blob> {
+  return requestBlob(
+    "downloadBinaryFile",
+    URL_MESSAGES_FILE_ID(id),
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+    options
+  );
 }
 
 export function isApiRequestError(error: unknown): error is ApiRequestError {
@@ -89,138 +255,15 @@ export function getSubFromJwt(token: string): string | null {
   }
 }
 
-export async function register(
-  username: string,
-  password: string,
-  options?: ApiCallOptions
-): Promise<void> {
-  await requestRaw(
-    "register",
-    `${BASE_URL}/register`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    },
-    options
-  );
-}
-
-/**
- * Full registration flow:
- * 1. Creates the user account
- * 2. Logs in to get an access token
- * 3. Generates keypair, encrypts private key with password, stores key material on server
- */
-export async function registerAndSetupKeys(
-  username: string,
-  password: string,
-  options?: ApiCallOptions
-): Promise<string> {
-  await register(username, password, options);
-  const accessToken = await login(username, password, options);
-  await createAndStoreUserKeyMaterial(password, accessToken);
-  return accessToken;
-}
-
-export async function login(
-  username: string,
-  password: string,
-  options?: ApiCallOptions
-): Promise<string> {
-  const data = await requestJson<{ access_token: string }>(
-    "login",
-    `${BASE_URL}/login`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    },
-    options
-  );
-
-  // data = { access_token, token_type, expires_in }
-  return data.access_token;
-}
-
-export async function uploadBinaryData(
-  id: string,
-  recipientUserId: string,
-  binaryData: ArrayBuffer,
-  accessToken: string,
-  options?: ApiCallOptions
-): Promise<void> {
-  const formData = new FormData();
-  formData.append("id", id);
-  formData.append("recipient_user_id", recipientUserId);
-  formData.append("binary_data", new Blob([binaryData]));
-
-  await requestRaw(
-    "uploadBinaryData",
-    `${BASE_URL}/binary-files`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: formData,
-    },
-    options
-  );
-}
-
-export async function downloadBinaryFile(
-  id: string,
-  accessToken: string,
-  options?: ApiCallOptions
-): Promise<Blob> {
-  return requestBlob(
-    "downloadBinaryFile",
-    `${BASE_URL}/binary-files/${id}`,
-    {
-      method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
-    options
-  );
-}
-
-export async function listBinaryFiles(
-  accessToken: string,
-  options?: ApiCallOptions
-): Promise<BinaryFileRecord[]> {
-  const data = await requestJson<ListBinaryFilesResponse>(
-    "listBinaryFiles",
-    `${BASE_URL}/binary-files`,
-    {
-      method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
-    options
-  );
-
-  if (Array.isArray(data)) {
-    return data as BinaryFileRecord[];
-  }
-
-  if (Array.isArray(data.files)) {
-    return data.files as BinaryFileRecord[];
-  }
-
-  if (Array.isArray(data.items)) {
-    return data.items as BinaryFileRecord[];
-  }
-
-  return [];
-}
-
 let lastApiRequestMeta: ApiRequestMeta | null = null;
 let apiRequestHistory: ApiRequestHistoryItem[] = [];
 const API_REQUEST_HISTORY_LIMIT = 25;
 
 type ListBinaryFilesResponse =
-  | BinaryFileRecord[]
+  | MessageInfo[]
   | {
-      files?: BinaryFileRecord[];
-      items?: BinaryFileRecord[];
+      files?: MessageInfo[];
+      items?: MessageInfo[];
     };
 
 function generateRequestId(): string {

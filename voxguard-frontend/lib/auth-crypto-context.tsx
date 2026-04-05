@@ -1,13 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { StoredPrivateKeyPackage } from "@/lib/crypto";
+import { UserKeyMaterialInfo } from "@/lib/types";
 
 type AuthCryptoState = {
     accessToken: string | null;
     userId: string | null;
     privateKey: CryptoKey | null;
-    userKeyMaterial: StoredPrivateKeyPackage | null;
+    userKeyMaterial: UserKeyMaterialInfo | null;
 };
 
 export type AuthCryptoContextType = AuthCryptoState & {

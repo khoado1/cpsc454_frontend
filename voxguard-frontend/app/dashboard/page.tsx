@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PageSection } from "@/components/ui/PageSection";
 import { FilesListControl } from "@/components/FilesListControl";
-import { listBinaryFiles, type BinaryFileRecord } from "@/lib/api";
+import { listBinaryFiles, type MessageInfo } from "@/lib/api";
 import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -16,8 +16,8 @@ import { RecorderControl } from "@/components/RecorderControl";
 export default function DashboardPage() {
   const router = useRouter();
   const { accessToken, userId, setAuthCryptoContext } = useAuthCryptoContext();
-  const [sentFiles, setSentFiles] = useState<BinaryFileRecord[]>([]);
-  const [receivedFiles, setReceivedFiles] = useState<BinaryFileRecord[]>([]);
+  const [sentFiles, setSentFiles] = useState<MessageInfo[]>([]);
+  const [receivedFiles, setReceivedFiles] = useState<MessageInfo[]>([]);
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState<string | null>(null);
 
@@ -47,8 +47,8 @@ export default function DashboardPage() {
         return;
       }
 
-      setSentFiles(files.filter((file) => file.owner_user_id === userId));
-      setReceivedFiles(files.filter((file) => file.recipient_user_id === userId));
+      setSentFiles(files.filter((file) => file.sender_user_id === userId));
+      setReceivedFiles(files.filter((file) => file.receiver_user_id === userId));
     } catch (error) {
       console.error("Failed to list files:", error);
       setFilesError("Unable to load files for this user.");

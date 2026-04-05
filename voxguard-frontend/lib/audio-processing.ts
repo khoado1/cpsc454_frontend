@@ -1,5 +1,6 @@
 
-import { generateSymmetricKey, generateIV, encryptWithSymmetricKey, encryptSymmetricKeyWithPublicKey, bytesToBase64, fetchRecipientPublicKey } from "@/lib/crypto";
+import { generateSymmetricKey, generateIV, encryptWithSymmetricKey, encryptSymmetricKeyWithPublicKey, bytesToBase64 } from "@/lib/crypto";
+import { fetchRecipientPublicKey as getUserPublicKey } from "@/lib/key-material";
 import { uploadBinaryData } from "./api";
 
 export type RecordingPayload = {
@@ -40,11 +41,11 @@ export async function setupSendRecordingPayload(data: ArrayBuffer, recipientPubl
 }
 
 export async function sendRecordingToRecipient(accessToken: string, recipientUser: string, data: ArrayBuffer) : Promise<string> {
-    const recipientPublicKey = await fetchRecipientPublicKey(recipientUser, accessToken);
+    const recipientPublicKey = await getUserPublicKey(recipientUser, accessToken);
     const payload = await setupSendRecordingPayload(data, recipientPublicKey);
 
     const fieldId = `${recipientUser}-${Date.now()}`;
-    await uploadBinaryData(fieldId, recipientUser, payload.encryptedData, accessToken);
+    await uploadBinaryData(payload.encryptedData, recipientUser, fieldId, accessToken);
     
     return fieldId;
 

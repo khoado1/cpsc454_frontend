@@ -1,4 +1,4 @@
-import type { BinaryFileRecord } from "@/lib/api";
+import type { MessageInfo } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -6,12 +6,12 @@ import { useState } from "react";
 
 type FilesListControlProps = {
   currentUserId: string | null;
-  sentFiles: BinaryFileRecord[];
-  receivedFiles: BinaryFileRecord[];
+  sentFiles: MessageInfo[];
+  receivedFiles: MessageInfo[];
   isLoading: boolean;
   error: string | null;
   selectedFileId?: string | null;
-  onFileSelect?: (file: BinaryFileRecord) => void;
+  onFileSelect?: (file: MessageInfo) => void;
 };
 
 function FileRow({
@@ -19,9 +19,9 @@ function FileRow({
   isSelected,
   onSelect,
 }: {
-  file: BinaryFileRecord;
+  file: MessageInfo;
   isSelected: boolean;
-  onSelect?: (file: BinaryFileRecord) => void;
+  onSelect?: (file: MessageInfo) => void;
 }) {
   return (
     <tr className={`border-b border-black/[.08] dark:border-white/[.12] transition-colors ${
@@ -32,13 +32,13 @@ function FileRow({
     }
     >
       <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 truncate">
-        {file.upload_id ?? "(no id)"}
+        {file.file_id ?? "(no id)"}
       </td>
       <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 truncate">
-        {file.owner_user_id ?? "(unknown)"}
+        {file.sender_user_id ?? "(unknown)"}
       </td>
       <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 truncate">
-        {file.recipient_user_id ?? "(unkown)"}
+        {file.receiver_user_id ?? "(unkown)"}
       </td>
       <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 text-center">
         {file.is_read ?"yes" : "no"}
@@ -127,9 +127,9 @@ export function FilesListControl({
                 <tbody>
                   {visibleFiles.map((file) => (
                     <FileRow
-                      key={`${activeListType}-${file.upload_id}-${file.owner_user_id}-${file.recipient_user_id}`}
+                      key={`${activeListType}-${file.file_id}-${file.sender_user_id}-${file.receiver_user_id}`}
                       file={file}
-                      isSelected={selectedFileId === file.upload_id}
+                      isSelected={selectedFileId === file.file_id}
                       onSelect={onFileSelect}
                     />
                   ))}

@@ -122,7 +122,7 @@ export async function getUsers(
     options
   );
 
-  return data.users as UserInfo[] || [];
+  return data as UserInfo[] || [];
 }
 
 export async function saveUserKeyMaterial(

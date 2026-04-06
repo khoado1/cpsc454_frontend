@@ -82,14 +82,14 @@ export async function fetchStoredPrivateKeyPackage(
  * Used in the send-message flow before encrypting audio for a recipient.
  */
 export async function fetchRecipientPublicKey(
-  userName: string,
+  user_id: string,
   accessToken: string
 ): Promise<CryptoKey> {
 
     const users = await getUsers(accessToken);
 
-    const user = users.find((i) => i.username === userName);
-    if (!user) throw new Error(`User ${userName} not found`);
+    const user = users.find((i) => i.user_id === user_id);
+    if (!user) throw new Error(`User ${user_id} not found`);
 
     return importKeyFromBase64(user.public_key_base64);
 }

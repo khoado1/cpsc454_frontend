@@ -40,14 +40,14 @@ export async function setupSendRecordingPayload(data: ArrayBuffer, recipientPubl
     };
 }
 
-export async function sendRecordingToRecipient(accessToken: string, recipientUser: string, data: ArrayBuffer) : Promise<string> {
-    const recipientPublicKey = await getUserPublicKey(recipientUser, accessToken);
+export async function sendRecordingToRecipient(accessToken: string, receiver_user_id: string, data: ArrayBuffer) : Promise<string> {
+    const recipientPublicKey = await getUserPublicKey(receiver_user_id, accessToken);
     const payload = await setupSendRecordingPayload(data, recipientPublicKey);
 
-    const fieldId = `${recipientUser}-${Date.now()}`;
-    await uploadBinaryData(payload.encryptedData, recipientUser, fieldId, accessToken);
+    const request_id = `${receiver_user_id}-${Date.now()}`;
+    await uploadBinaryData(payload.encryptedData, receiver_user_id, request_id, accessToken);
     
-    return fieldId;
+    return request_id;
 
 
 }

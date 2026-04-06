@@ -5,8 +5,8 @@ cd voxguard-frontend
 --ensure you are on voxguard-frontend directory
 npm run dev
 
-user1, user1, 69d15634ff419132e842b9da
-user2, user2, 69d15640ff419132e842b9db
+user1, user1, 69d31952f242e32c9140f0d8
+user2, user2, 69d3195bf242e32c9140f0d9
 
 Open Chrome instance for debugging
 open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-vscode-debug
@@ -18,7 +18,7 @@ NEXT_PUBLIC_API_BASE_URL
 1. In the voxguard-frontend root, create a file named .env.local.
 
 2. Add the variable with your backend URL:
-NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:9001
 
 3. Save the file, then restart the dev server:
 npm run dev
@@ -40,12 +40,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:9000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-
+--Swagger documentation
+http://localhost:9001/docs
 

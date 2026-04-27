@@ -1,5 +1,4 @@
 import type { MessageInfo } from "@/lib/api";
-import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useState } from "react";
@@ -30,6 +29,16 @@ function FileRow({
         : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
       }`
     }
+    onClick={() => onSelect?.(file)}
+    role={onSelect ? "button" : undefined}
+    tabIndex={onSelect ? 0 : undefined}
+    onKeyDown={(event) => {
+      if (!onSelect) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onSelect(file);
+      }
+    }}
     >
       <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 truncate">
         {file.file_id ?? "(no id)"}

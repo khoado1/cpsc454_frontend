@@ -7,11 +7,13 @@ import { FilesListControl } from "@/components/FilesListControl";
 import { listBinaryFiles, type MessageInfo } from "@/lib/api";
 import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef, use } from "react";
 import { useDashboardController } from "@/lib/useDashboardController";
-import { sendRecordingToRecipient } from "@/lib/audio-processing";
+import { downloadAndDecryptRecording, sendRecordingToRecipient } from "@/lib/audio-processing";
 import { Input } from "@/components/ui/Input";
 import { RecorderControl } from "@/components/RecorderControl";
+import { clear } from "node:console";
+import { PlayerControl } from "@/components/PlayerControl";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -20,6 +22,11 @@ export default function DashboardPage() {
   const [receivedFiles, setReceivedFiles] = useState<MessageInfo[]>([]);
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<MessageInfo | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const audioBlobUrlRef = useRef<string | null>(null);
 
   const dashboardController = useDashboardController(
     useMemo(() => ({
@@ -58,6 +65,50 @@ export default function DashboardPage() {
       setIsFilesLoading(false);
     }
   }, [accessToken, userId]);
+
+  const clearAudioUrl = useCallback(() => {
+    if (audioBlobUrlRef.current) {
+      URL.revokeObjectURL(audioBlobUrlRef.current);
+      audioBlobUrlRef.current = null;
+    }
+    setAudioUrl(null);
+  }, []);
+
+  const handleFileSelect = useCallback(async (file: MessageInfo) => {
+    if (!accessToken || !privateKey) {
+      setAudioError("Missing authentication or decryption key.");
+      return;
+    }
+    clearAudioUrl();
+    setSelectedFile(file);
+    setAudioError(null);
+
+    if (file.receiver_user_id === userId) {
+      setAudioError("Only received messages can be played with the current message key");
+      return;
+    }
+
+    setIsAudioLoading(true);
+    try {
+      const recording = await downloadAndDecryptRecording(file.file_id, privateKey, accessToken);
+      const blob = new Blob([recording.data], {type: recording.mimeType});
+      const url = URL.createObjectURL(blob);
+      audioBlobUrlRef.current = url;
+      setAudioUrl(url);
+      await handleLoadFiles();
+
+    } catch (error) {
+      console.error("Failed to load audio file:", error);
+      setAudioError(error instanceof Error ? error.message : "Unable to play the selected message.");
+      setIsAudioLoading(false);
+      setSelectedFile(null);
+    } finally {
+      setIsAudioLoading(false);
+    }
+
+  }, [accessToken, clearAudioUrl, handleLoadFiles, privateKey, userId]);
+
+  useEffect(() => clearAudioUrl, [clearAudioUrl]);
 
   useEffect(
     () => {
@@ -136,7 +187,17 @@ export default function DashboardPage() {
               receivedFiles={receivedFiles}
               isLoading={isFilesLoading}
               error={filesError}
+              selectedFileId={selectedFile?.file_id ?? null}
+              onFileSelect={handleFileSelect}
             />
+            <div className="mt-4">
+              <PlayerControl 
+                audioUrl={audioUrl} 
+                fileName={selectedFile?.file_id??null}
+                isLoading={isAudioLoading}
+                error={audioError}
+              />
+            </div>
           </div>
           </Card>
         </div>

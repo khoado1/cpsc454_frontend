@@ -23,7 +23,7 @@ export function generateSalt() : Uint8Array {
   return crypto.getRandomValues(new Uint8Array(PBKDF2_SALT_BYTES));
 }
 
-export async function encryptWithSymmetricKey(key: CryptoKey, iv: Uint8Array, data: ArrayBuffer): Promise<ArrayBuffer> {
+export async function encryptDataWithSymmetricKey(key: CryptoKey, iv: Uint8Array, data: ArrayBuffer): Promise<ArrayBuffer> {
   return await crypto.subtle.encrypt(
     {name: "AES-GCM", iv: iv as BufferSource}, 
     key, 
@@ -161,4 +161,30 @@ export async function importKeyFromBase64(
         false,
         ["encrypt"]
     );
+}
+
+export async function decryptSymmetricKeyWithPrivateKey(encryptedSymmetricKeyBase64: string, algorithmForData: string, privateKey: CryptoKey): Promise<CryptoKey> {
+  const encryptedSymmetricKeyBytes = base64ToBytes(encryptedSymmetricKeyBase64);
+
+  return crypto.subtle.decrypt(
+    { name: "RSA-OAEP" },
+    privateKey,
+    encryptedSymmetricKeyBytes as BufferSource
+  ).then((symmetricKeyRaw) => {
+    return crypto.subtle.importKey(
+      "raw",
+      symmetricKeyRaw,
+      { name: algorithmForData },
+      false,
+      ["decrypt"]
+    );
+  });
+}
+
+export async function decryptDataWithSymmetricKey(symmetricKey: CryptoKey, ivForData: Uint8Array, algorithmForData: string, encryptedData: ArrayBuffer): Promise<ArrayBuffer> {
+  return await crypto.subtle.decrypt(
+    { name: algorithmForData, iv: ivForData as BufferSource },
+    symmetricKey,
+    encryptedData
+  );
 }

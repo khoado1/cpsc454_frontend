@@ -6,9 +6,12 @@ import { PlayerControl } from "@/components/PlayerControl";
 import { RegisterControl } from "@/components/RegisterControl";
 import { RecorderControl } from "@/components/RecorderControl";
 import { PageSection } from "@/components/ui/PageSection";
-import { downloadBinaryFile, listBinaryFiles, login, type MessageInfo } from "@/lib/api";
-import { registerAndSetupKeys } from "@/lib/key-material";
+import { listBinaryFiles, login, type MessageInfo } from "@/lib/api";
+import { fetchStoredPrivateKeyPackage, registerAndSetupKeys } from "@/lib/key-material";
 import { useState, useRef } from "react";
+import { downloadAndDecryptRecording } from "@/lib/audio-processing";
+import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
+import { decryptStoredPrivateKey } from "@/lib/crypto";
 
 function getSubFromJwt(token: string): string | null {
   try {
@@ -27,7 +30,8 @@ function getSubFromJwt(token: string): string | null {
 }
 
 export default function Home() {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  //const [accessToken, setAccessToken] = useState<string | null>(null);
+  const { accessToken, userId, privateKey, setAuthCryptoContext } = useAuthCryptoContext();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [sentFiles, setSentFiles] = useState<MessageInfo[]>([]);
   const [receivedFiles, setReceivedFiles] = useState<MessageInfo[]>([]);
@@ -40,6 +44,7 @@ export default function Home() {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
   const audioBlobUrlRef = useRef<string | null>(null);
 
   const loadFilesForUser = async (accessToken: string, userId: string) => {
@@ -75,7 +80,9 @@ export default function Home() {
     setIsAudioLoading(true);
 
     try {
-      const blob = await downloadBinaryFile(file.file_id, accessToken);
+      const recording = await downloadAndDecryptRecording(file.file_id, privateKey, accessToken);
+
+      const blob = new Blob([recording.data], { type: recording.mimeType });
       const url = URL.createObjectURL(blob);
       audioBlobUrlRef.current = url;
       setAudioUrl(url);
@@ -98,14 +105,16 @@ export default function Home() {
     const password = formData.get("password") as string;
 
     try {
-      const token = await registerAndSetupKeys(username, password);
-      console.log("Registration and key setup successful, token:", token);
-      setAccessToken(token);
-
-      const userId = getSubFromJwt(token);
+      const registrationInfo = await registerAndSetupKeys(username, password);
+      console.log("Registration and key setup successful, token:", registrationInfo);
+      
+      const userId = getSubFromJwt(registrationInfo.accessToken);
+      const privateKey = await decryptStoredPrivateKey(password, registrationInfo.userKeyMaterial);
+      setAuthCryptoContext({ accessToken: registrationInfo.accessToken, userId: userId, privateKey: privateKey, userKeyMaterial: registrationInfo.userKeyMaterial });
+  
       if (userId) {
         setCurrentUserId(userId);
-        await loadFilesForUser(token, userId);
+        await loadFilesForUser(registrationInfo.accessToken, userId);
       }
     } catch (err) {
       console.error("Registration failed:", err);
@@ -126,7 +135,15 @@ export default function Home() {
     try {
       const token = await login(username, password);
       console.log("Login successful, token:", token);
-      setAccessToken(token);
+      const userKeyMaterial = await fetchStoredPrivateKeyPackage(token);
+      const privateKey = await decryptStoredPrivateKey(password, userKeyMaterial);
+
+      setAuthCryptoContext({
+        accessToken : token,
+        userId: getSubFromJwt(token),
+        privateKey: privateKey,
+        userKeyMaterial: userKeyMaterial,
+      });
 
       const userId = getSubFromJwt(token);
       if (!userId) {

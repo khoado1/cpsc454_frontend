@@ -8,7 +8,7 @@ const URL_LOGIN = `${BASE_URL}/login`;
 const URL_USERS = `${BASE_URL}/users`;
 const URL_USERS_KEY_MATERIAL = `${BASE_URL}/users/me/key-material`;
 const URL_MESSAGES = `${BASE_URL}/messages`;
-const URL_MESSAGES_FILE_ID = (file_id: string) => `${BASE_URL}/messages/{encodeURIComponent(file_id)}`;
+const URL_MESSAGES_FILE_ID = (file_id: string) => `${BASE_URL}/messages/${encodeURIComponent(file_id)}`;
 
 export type ApiErrorKind = "network" | "timeout" | "aborted" | "http" | "parse" | "unknown";
 
@@ -47,6 +47,11 @@ export type MessageInfo = {
   is_read: boolean;
   data_length: number;
   created_at: string;
+};
+
+export type BlobWithHeaders = {
+  headers: Headers;
+  blob: Blob;
 };
 
 export class ApiRequestError extends Error {
@@ -171,6 +176,11 @@ export async function uploadBinaryData(
   data: ArrayBuffer,
   receiver_user_id: string,
   request_id: string,
+  iv_for_data_base64: string,
+  algorithm_for_data: string,
+  encrypted_symmetric_key_base64: string,
+  algorithm_for_symmetric_key: string,
+  decrypted_content_type: string,
   accessToken: string,
   options?: ApiCallOptions
 ): Promise<void> {
@@ -178,6 +188,11 @@ export async function uploadBinaryData(
   formData.append("data", new Blob([data]));
   formData.append("receiver_user_id", receiver_user_id);
   formData.append("request_id", request_id);
+  formData.append("iv_for_data_base64", iv_for_data_base64);
+  formData.append("algorithm_for_data", algorithm_for_data);
+  formData.append("encrypted_symmetric_key_base64", encrypted_symmetric_key_base64);
+  formData.append("algorithm_for_symmetric_key", algorithm_for_symmetric_key);
+  formData.append("decrypted_content_type", decrypted_content_type);
 
   await requestRaw(
     "uploadBinaryData",
@@ -211,7 +226,7 @@ export async function downloadBinaryFile(
   id: string,
   accessToken: string,
   options?: ApiCallOptions
-): Promise<Blob> {
+): Promise<BlobWithHeaders> {
   return requestBlob(
     "downloadBinaryFile",
     URL_MESSAGES_FILE_ID(id),
@@ -581,8 +596,12 @@ async function requestBlob(
   url: string,
   init: RequestInit,
   options?: ApiCallOptions
-): Promise<Blob> {
+): Promise<BlobWithHeaders>{
   const { response } = await requestRaw(operation, url, init, options);
-  return response.blob();
+  
+  return {
+    headers: response.headers,
+    blob: await response.blob(),
+  };
 }
 

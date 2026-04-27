@@ -15,7 +15,7 @@ import { RecorderControl } from "@/components/RecorderControl";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { accessToken, userId, setAuthCryptoContext } = useAuthCryptoContext();
+  const { accessToken, userId, privateKey, setAuthCryptoContext } = useAuthCryptoContext();
   const [sentFiles, setSentFiles] = useState<MessageInfo[]>([]);
   const [receivedFiles, setReceivedFiles] = useState<MessageInfo[]>([]);
   const [isFilesLoading, setIsFilesLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function DashboardPage() {
       sendRecordingToRecipient: async (userId, recording) => {
           if(!accessToken) throw new Error("Must be logged in to send recording.");
           
-          await sendRecordingToRecipient(accessToken, userId, recording.data);
+          await sendRecordingToRecipient(accessToken, userId, recording.data, recording.mimeType);
       },
     }), [accessToken])
   );

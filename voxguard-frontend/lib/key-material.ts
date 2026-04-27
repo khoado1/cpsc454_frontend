@@ -17,6 +17,11 @@ import {
 } from "@/lib/crypto";
 import { UserKeyMaterialInfo } from "./types";
 
+export type RegistrationInfo = {
+  accessToken: string;
+  userKeyMaterial: UserKeyMaterialInfo;
+};
+
 /**
  * Creates a keypair, encrypts the private key with a password-derived key,
  * and sends public + encrypted private key material to the backend.
@@ -60,11 +65,14 @@ export async function registerAndSetupKeys(
   username: string,
   password: string,
   options?: ApiCallOptions
-): Promise<string> {
+): Promise<RegistrationInfo> {
   await register(username, password, options);
   const accessToken = await login(username, password, options);
-  await createAndStoreUserKeyMaterial(password, accessToken);
-  return accessToken;
+  const userKeyMaterial = await createAndStoreUserKeyMaterial(password, accessToken);
+  return {
+    accessToken,
+    userKeyMaterial,
+  };
 }
 
 /**

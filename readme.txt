@@ -5,8 +5,8 @@ cd voxguard-frontend
 --ensure you are on voxguard-frontend directory
 npm run dev
 
-user1, user1, 69d31952f242e32c9140f0d8
-user2, user2, 69d3195bf242e32c9140f0d9
+user1, user1, 69d515e2f34eb98b2e9a70bc
+user2, user2, 69d5166af34eb98b2e9a70bd
 
 Open Chrome instance for debugging
 open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-vscode-debug

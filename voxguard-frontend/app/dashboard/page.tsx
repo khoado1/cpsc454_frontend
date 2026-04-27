@@ -7,12 +7,11 @@ import { FilesListControl } from "@/components/FilesListControl";
 import { listBinaryFiles, type MessageInfo } from "@/lib/api";
 import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo, useCallback, useRef, use } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useDashboardController } from "@/lib/useDashboardController";
 import { downloadAndDecryptRecording, sendRecordingToRecipient } from "@/lib/audio-processing";
 import { Input } from "@/components/ui/Input";
 import { RecorderControl } from "@/components/RecorderControl";
-import { clear } from "node:console";
 import { PlayerControl } from "@/components/PlayerControl";
 
 export default function DashboardPage() {
@@ -83,7 +82,7 @@ export default function DashboardPage() {
     setSelectedFile(file);
     setAudioError(null);
 
-    if (file.receiver_user_id === userId) {
+    if (file.receiver_user_id !== userId) {
       setAudioError("Only received messages can be played with the current message key");
       return;
     }

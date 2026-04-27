@@ -20,7 +20,7 @@ import {
     sendRecordingTransition,
 } from "@/lib/send-recording-domain";
 
-type DashboardCoreState = {};
+type DashboardCoreState = Record<never, never>;
 
 type DashboardCoreEvent = { type: "dashboard" };
 

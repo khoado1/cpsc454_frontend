@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/Card";
 import { PageSection } from "@/components/ui/PageSection";
 import { LoginControl } from "@/components/LoginControl";
+import Link from "next/link";
 import { getSubFromJwt, login } from "@/lib/api";
 import { decryptStoredPrivateKey } from "@/lib/crypto";
 import { fetchStoredPrivateKeyPackage } from "@/lib/key-material";
@@ -13,8 +14,8 @@ import { useState, useEffect } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { setAuthCryptoContext } = useAuthCryptoContext();
   const [isSupportedBrowser, setIsSupportedBrowser] = useState(true);
 
@@ -22,17 +23,17 @@ export default function LoginPage() {
     setIsSupportedBrowser(hasRequiredAudioSupport());
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isLoggingIn) return;
 
     if (!isSupportedBrowser){
-      setError("Your browser does not support the required audio features. Please use Chrome or Edge.");
+      setLoginError("Your browser does not support the required audio features. Please use Chrome or Edge.");
       return;
     }
 
-    setError(null);
-    setIsSubmitting(true);
+    setLoginError(null);
+    setIsLoggingIn(true);
 
     const formData = new FormData(e.currentTarget);
     const username = formData.get("username") as string;
@@ -45,7 +46,7 @@ export default function LoginPage() {
       const privateKey = await decryptStoredPrivateKey(password, userKeyMaterial);
 
       setAuthCryptoContext({
-        accessToken : token,
+        accessToken: token,
         userId: getSubFromJwt(token),
         privateKey: privateKey,
         userKeyMaterial: userKeyMaterial,
@@ -53,10 +54,10 @@ export default function LoginPage() {
 
       router.push("/dashboard");
     } catch (err) {
-      setError("Login failed. Please check your username and password.");
+      setLoginError("Login failed. Please check your username and password.");
       console.error(err);
     } finally {
-      setIsSubmitting(false);
+      setIsLoggingIn(false);
     }
   };
 
@@ -65,8 +66,8 @@ export default function LoginPage() {
       <main className="w-full max-w-md">
         <Card className="flex flex-col items-center gap-8" padding="xl">
           <LoginControl 
-            onSubmit={handleSubmit} 
-            isSubmitting={isSubmitting} 
+            onSubmit={handleLogin}
+            isSubmitting={isLoggingIn}
             isDisabled={!isSupportedBrowser} 
           />
           {!isSupportedBrowser && (
@@ -74,9 +75,15 @@ export default function LoginPage() {
               Unsupported browser for recording.  Please use Chrome or Edge for now.
             </p>
           )}
-          {error && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
+          {loginError && (
+            <p className="text-sm text-red-500 text-center">{loginError}</p>
           )}
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Need an account?{" "}
+            <Link className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" href="/register">
+              Register
+            </Link>
+          </p>
         </Card>
       </main>
     </PageSection>

@@ -6,9 +6,14 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 type RegisterControlProps = {
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void> | void;
   isSubmitting?: boolean;
+  isDisabled?: boolean;
 };
 
-export function RegisterControl({ onSubmit, isSubmitting = false }: RegisterControlProps) {
+export function RegisterControl({
+  onSubmit,
+  isSubmitting = false,
+  isDisabled = false,
+}: RegisterControlProps) {
   return (
     <>
       <SectionHeader
@@ -19,7 +24,7 @@ export function RegisterControl({ onSubmit, isSubmitting = false }: RegisterCont
       />
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4 w-full">
-        <FormField label="Username" htmlFor="register-username">
+        <FormField label="Register username" htmlFor="register-username">
           <Input
             type="text"
             id="register-username"
@@ -29,7 +34,7 @@ export function RegisterControl({ onSubmit, isSubmitting = false }: RegisterCont
           />
         </FormField>
 
-        <FormField label="Password" htmlFor="register-password">
+        <FormField label="Register password" htmlFor="register-password">
           <Input
             type="password"
             id="register-password"
@@ -42,6 +47,7 @@ export function RegisterControl({ onSubmit, isSubmitting = false }: RegisterCont
         <Button
           type="submit"
           variant="secondary"
+          disabled={isDisabled}
           fullWidth
           isLoading={isSubmitting}
           loadingText="Registering..."

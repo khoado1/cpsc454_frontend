@@ -37,21 +37,32 @@ export type ApiCallOptions = {
 export type UserInfo = {
   user_id: string;
   username: string;
-  public_key_base64: string;
+  public_key_base64: string | null;
 };
 
 export type MessageInfo = {
   file_id: string;
-  sender_user_id: string;
-  receiver_user_id: string;
-  is_read: boolean;
-  data_length: number;
-  created_at: string;
+  sender_user_id: string | null;
+  receiver_user_id: string | null;
+  is_read: number;
+  filename: string | null;
+  data_length: number | null;
+  content_type: string | null;
+  created_at: string | null;
+  upload_date: string | null;
+  request_id: string | null;
 };
 
 export type BlobWithHeaders = {
   headers: Headers;
   blob: Blob;
+};
+
+export type MessageReadInfo = {
+  file_id: string;
+  is_read: number;
+  read_at: string | null;
+  status: string;
 };
 
 export class ApiRequestError extends Error {
@@ -117,7 +128,7 @@ export async function getUsers(
   accessToken: string,
   options?: ApiCallOptions
 ): Promise<UserInfo[]> {
-  const data = await requestJson<{ users?: UserInfo[] }>(
+  const data = await requestJson<UserInfo[] | { users?: UserInfo[] }>(
     "getUsers",
     URL_USERS,
     {
@@ -127,7 +138,11 @@ export async function getUsers(
     options
   );
 
-  return data as UserInfo[] || [];
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  return data.users ?? [];
 }
 
 export async function saveUserKeyMaterial(
@@ -238,6 +253,27 @@ export async function downloadBinaryFile(
   );
 }
 
+export async function markBinaryFileRead(
+  id: string,
+  isRead: boolean,
+  accessToken: string,
+  options?: ApiCallOptions
+): Promise<MessageReadInfo> {
+  return requestJson<MessageReadInfo>(
+    "markBinaryFileRead",
+    URL_MESSAGES_FILE_ID(id),
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ is_read: isRead }),
+    },
+    options
+  );
+}
+
 export function isApiRequestError(error: unknown): error is ApiRequestError {
   return error instanceof ApiRequestError;
 }
@@ -273,13 +309,6 @@ export function getSubFromJwt(token: string): string | null {
 let lastApiRequestMeta: ApiRequestMeta | null = null;
 let apiRequestHistory: ApiRequestHistoryItem[] = [];
 const API_REQUEST_HISTORY_LIMIT = 25;
-
-type ListBinaryFilesResponse =
-  | MessageInfo[]
-  | {
-      files?: MessageInfo[];
-      items?: MessageInfo[];
-    };
 
 function generateRequestId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -604,4 +633,3 @@ async function requestBlob(
     blob: await response.blob(),
   };
 }
-

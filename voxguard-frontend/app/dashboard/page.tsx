@@ -4,13 +4,12 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PageSection } from "@/components/ui/PageSection";
 import { FilesListControl } from "@/components/FilesListControl";
-import { listBinaryFiles, type MessageInfo } from "@/lib/api";
+import { getUsers, listBinaryFiles, markBinaryFileRead, type MessageInfo, type UserInfo } from "@/lib/api";
 import { useAuthCryptoContext } from "@/lib/auth-crypto-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useDashboardController } from "@/lib/useDashboardController";
 import { downloadAndDecryptRecording, sendRecordingToRecipient } from "@/lib/audio-processing";
-import { Input } from "@/components/ui/Input";
 import { RecorderControl } from "@/components/RecorderControl";
 import { PlayerControl } from "@/components/PlayerControl";
 
@@ -25,7 +24,11 @@ export default function DashboardPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [users, setUsers] = useState<UserInfo[]>([]);
+  const [isUsersLoading, setIsUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const audioBlobUrlRef = useRef<string | null>(null);
+  const markedReadFileIdsRef = useRef<Set<string>>(new Set());
 
   const dashboardController = useDashboardController(
     useMemo(() => ({
@@ -36,6 +39,11 @@ export default function DashboardPage() {
       },
     }), [accessToken])
   );
+  const sendResetRef = useRef(dashboardController.sendReset);
+
+  useEffect(() => {
+    sendResetRef.current = dashboardController.sendReset;
+  }, [dashboardController.sendReset]);
 
   const handleLoadFiles = useCallback(async () => {
     if (!accessToken) return;
@@ -55,6 +63,9 @@ export default function DashboardPage() {
 
       setSentFiles(files.filter((file) => file.sender_user_id === userId));
       setReceivedFiles(files.filter((file) => file.receiver_user_id === userId));
+      markedReadFileIdsRef.current = new Set(
+        files.filter((file) => file.is_read).map((file) => file.file_id)
+      );
     } catch (error) {
       console.error("Failed to list files:", error);
       setFilesError("Unable to load files for this user.");
@@ -62,6 +73,28 @@ export default function DashboardPage() {
       setReceivedFiles([]);
     } finally {
       setIsFilesLoading(false);
+    }
+  }, [accessToken, userId]);
+
+  const handleLoadUsers = useCallback(async () => {
+    if (!accessToken) return;
+
+    setUsersError(null);
+    setIsUsersLoading(true);
+
+    try {
+      const loadedUsers = await getUsers(accessToken, { timeoutMs: 15000 });
+      const recipientUsers = loadedUsers.filter(
+        (user) => user.user_id !== userId && Boolean(user.public_key_base64)
+      );
+
+      setUsers(recipientUsers);
+    } catch (error) {
+      console.error("Failed to load users:", error);
+      setUsersError("Unable to load users.");
+      setUsers([]);
+    } finally {
+      setIsUsersLoading(false);
     }
   }, [accessToken, userId]);
 
@@ -94,7 +127,6 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       audioBlobUrlRef.current = url;
       setAudioUrl(url);
-      await handleLoadFiles();
 
     } catch (error) {
       console.error("Failed to load audio file:", error);
@@ -105,7 +137,43 @@ export default function DashboardPage() {
       setIsAudioLoading(false);
     }
 
-  }, [accessToken, clearAudioUrl, handleLoadFiles, privateKey, userId]);
+  }, [accessToken, clearAudioUrl, privateKey, userId]);
+
+  const markSelectedFileRead = useCallback(async () => {
+    if (!accessToken || !selectedFile || selectedFile.receiver_user_id !== userId) {
+      return;
+    }
+
+    if (selectedFile.is_read || markedReadFileIdsRef.current.has(selectedFile.file_id)) {
+      return;
+    }
+
+    markedReadFileIdsRef.current.add(selectedFile.file_id);
+
+    const markFileReadLocally = (file: MessageInfo) =>
+      file.file_id === selectedFile.file_id ? { ...file, is_read: 1 } : file;
+
+    setSelectedFile((current) =>
+      current?.file_id === selectedFile.file_id ? { ...current, is_read: 1 } : current
+    );
+    setReceivedFiles((files) => files.map(markFileReadLocally));
+
+    try {
+      await markBinaryFileRead(selectedFile.file_id, true, accessToken);
+    } catch (error) {
+      console.error("Failed to mark message as read:", error);
+      markedReadFileIdsRef.current.delete(selectedFile.file_id);
+      setSelectedFile((current) =>
+        current?.file_id === selectedFile.file_id ? { ...current, is_read: selectedFile.is_read } : current
+      );
+      setReceivedFiles((files) =>
+        files.map((file) =>
+          file.file_id === selectedFile.file_id ? { ...file, is_read: selectedFile.is_read } : file
+        )
+      );
+      setFilesError("Unable to mark the selected message as read.");
+    }
+  }, [accessToken, selectedFile, userId]);
 
   useEffect(() => clearAudioUrl, [clearAudioUrl]);
 
@@ -114,12 +182,24 @@ export default function DashboardPage() {
       if (dashboardController.sendStatus === "success") {
         handleLoadFiles();
         const timer = setTimeout(() => {
-          dashboardController.sendReset();
+          sendResetRef.current();
         }, 3000);
         return () => clearTimeout(timer);
       }
     }, [dashboardController.sendStatus, handleLoadFiles]
   );
+
+  useEffect(() => {
+    if (accessToken) {
+      handleLoadUsers();
+    }
+  }, [accessToken, handleLoadUsers]);
+
+  useEffect(() => {
+    if (accessToken && userId) {
+      handleLoadFiles();
+    }
+  }, [accessToken, handleLoadFiles, userId]);
 
   // On mount, check if user is logged in
   useEffect(() => {
@@ -167,18 +247,6 @@ export default function DashboardPage() {
             Token: {accessToken.slice(0, 40)}...
           </p>
 
-          <Button
-            type="button"
-            variant="info"
-            size="md"
-            className="mt-4"
-            isLoading={isFilesLoading}
-            loadingText="Loading files..."
-            onClick={handleLoadFiles}
-          >
-            Load Messages
-          </Button>
-
           <div className="mt-6">
             <FilesListControl
               currentUserId={userId}
@@ -189,12 +257,24 @@ export default function DashboardPage() {
               selectedFileId={selectedFile?.file_id ?? null}
               onFileSelect={handleFileSelect}
             />
+            <Button
+              type="button"
+              variant="info"
+              size="md"
+              className="mt-4"
+              isLoading={isFilesLoading}
+              loadingText="Loading messages..."
+              onClick={handleLoadFiles}
+            >
+              Refresh Messages
+            </Button>
             <div className="mt-4">
               <PlayerControl 
                 audioUrl={audioUrl} 
                 fileName={selectedFile?.file_id??null}
                 isLoading={isAudioLoading}
                 error={audioError}
+                onPlay={markSelectedFileRead}
               />
             </div>
           </div>
@@ -205,15 +285,53 @@ export default function DashboardPage() {
           <Card className="w-full">
             <div className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.08]">
             <p className="text-sm text-zinc-700 dark:text-zinc-400">Send a recording</p>
-            <Input
-              type="text"
-              value={dashboardController.recipientUserId ?? ""}
-              onChange={(event) => {
-                const nextValue = event.target.value.trim();
-                dashboardController.setRecipient(nextValue.length > 0 ? nextValue : null);
-              }}
-              placeholder="Recipient User ID">
-            </Input>
+            <div className="flex flex-col gap-2">
+              <label
+                className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                htmlFor="recipient-user"
+              >
+                Recipient
+              </label>
+              <div className="flex gap-2">
+                <select
+                  id="recipient-user"
+                  className="w-full rounded-lg border border-black/[.1] bg-white px-4 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-white/[.1] dark:bg-zinc-900 dark:text-white"
+                  value={dashboardController.recipientUserId ?? ""}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    dashboardController.setRecipient(nextValue.length > 0 ? nextValue : null);
+                  }}
+                  disabled={isUsersLoading || users.length === 0}
+                >
+                  <option value="">
+                    {isUsersLoading ? "Loading users..." : "Select a user"}
+                  </option>
+                  {users.map((user) => (
+                    <option key={user.user_id} value={user.user_id}>
+                      {user.username} ({user.user_id})
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  isLoading={isUsersLoading}
+                  loadingText="Loading"
+                  onClick={handleLoadUsers}
+                >
+                  Refresh
+                </Button>
+              </div>
+              {usersError && (
+                <p className="text-sm text-red-500">{usersError}</p>
+              )}
+              {!isUsersLoading && !usersError && users.length === 0 && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  No other users with encryption keys are available yet.
+                </p>
+              )}
+            </div>
             <RecorderControl onRecordingReady={dashboardController.onRecordingReady} />
 
             {dashboardController.pendingRecording && (

@@ -50,13 +50,13 @@ function FileRow({
         {file.receiver_user_id ?? "(unkown)"}
       </td>
       <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-100 text-center">
-        {file.is_read ?"yes" : "no"}
+        {file.is_read ? "yes" : "no"}
       </td>
       <td className="px-4 py-3 text-sm font-medium text-black dark:text-zinc-400">
         {file.created_at ?? "(unkown)"}
       </td>
       <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400 text-right">
-        {Math.round(file.data_length/1024) ?? "(unknown)"} KB
+        {file.data_length === null ? "(unknown)" : `${Math.round(file.data_length / 1024)} KB`}
       </td>
     </tr>
   );

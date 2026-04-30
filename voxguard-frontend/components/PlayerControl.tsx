@@ -7,9 +7,10 @@ type PlayerControlProps = {
   fileName: string | null;
   isLoading: boolean;
   error: string | null;
+  onPlay?: () => void;
 };
 
-export function PlayerControl({ audioUrl, fileName, isLoading, error }: PlayerControlProps) {
+export function PlayerControl({ audioUrl, fileName, isLoading, error, onPlay }: PlayerControlProps) {
   if (!audioUrl && !isLoading && !error) return null;
 
   return (
@@ -22,7 +23,7 @@ export function PlayerControl({ audioUrl, fileName, isLoading, error }: PlayerCo
 
       {audioUrl && (
         // key forces the element to remount when the src changes so autoplay works correctly
-        <audio key={audioUrl} controls autoPlay src={audioUrl} className="w-full" />
+        <audio key={audioUrl} controls autoPlay src={audioUrl} className="w-full" onPlay={onPlay} />
       )}
     </Panel>
   );

@@ -98,6 +98,7 @@ export async function fetchRecipientPublicKey(
 
     const user = users.find((i) => i.user_id === user_id);
     if (!user) throw new Error(`User ${user_id} not found`);
+    if (!user.public_key_base64) throw new Error(`User ${user_id} has no public key`);
 
     return importKeyFromBase64(user.public_key_base64);
 }

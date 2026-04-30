@@ -33,6 +33,7 @@ export async function encodeToOpus(
     pcmData: ArrayBuffer,
     options?: CodecEncoderOptions
 ) : Promise<ArrayBuffer> {
+    void options;
     
     checkWasmLoaded();
 

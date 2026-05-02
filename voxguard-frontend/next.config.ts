@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: appRoot,
   },
+  output: 'export'
 };
 
 export default nextConfig;
